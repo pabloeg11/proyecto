@@ -1,0 +1,79 @@
+---
+const currentYear = new Date().getFullYear();
+
+const footerSections = [
+  {
+    title: 'Explorar',
+    links: [
+      { href: '/reviews/', label: 'Todas las reseñas' },
+      { href: '/categories/', label: 'Categorías' },
+      { href: '/blog/', label: 'Blog' },
+    ],
+  },
+  {
+    title: 'Categorías',
+    links: [
+      { href: '/categories/peliculas/', label: 'Películas' },
+      { href: '/categories/series/', label: 'Series' },
+      { href: '/categories/videojuegos/', label: 'Videojuegos' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { href: '/contact/', label: 'Contacto' },
+      { href: '#', label: 'Política de privacidad' },
+      { href: '#', label: 'Aviso legal' },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-border bg-card text-card-foreground">
+  <div class="container py-12">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <!-- Brand -->
+      <div class="md:col-span-1">
+        <a href="/" class="inline-block mb-4">
+          <span class="text-2xl font-serif font-bold text-primary tracking-tight">
+            Criti<span class="text-accent">X</span>
+          </span>
+        </a>
+        <p class="text-sm text-muted-foreground leading-relaxed">
+          Tu fuente de confianza para reseñas de películas, series y videojuegos. Descubre, valora y comparte tu opinión.
+        </p>
+      </div>
+
+      <!-- Nav Sections -->
+      {footerSections.map(({ title, links }) => (
+        <div>
+          <h3 class="font-sans font-semibold text-sm uppercase tracking-wider mb-4 text-foreground">
+            {title}
+          </h3>
+          <ul class="flex flex-col gap-2">
+            {links.map(({ href, label }) => (
+              <li>
+                <a
+                  href={href}
+                  class="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="mt-10 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
+      <p class="text-xs text-muted-foreground">
+        &copy; {currentYear} CritiX. Todos los derechos reservados.
+      </p>
+      <p class="text-xs text-muted-foreground">
+        Hecho con Astro + Tailwind CSS
+      </p>
+    </div>
+  </div>
+</footer>

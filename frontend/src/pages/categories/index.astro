@@ -1,0 +1,170 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ReviewCard from '../../components/ReviewCard.astro';
+import { getCategories, getReviews } from '../../lib/api';
+
+const categoryIcons: Record<string, string> = {
+  peliculas: 'M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z',
+  series: 'M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125z',
+  videojuegos: 'M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.39 48.39 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 00-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 01-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 00.657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 005.427-.63 48.05 48.05 0 00.582-4.717.532.532 0 00-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.959.401v0a.656.656 0 00.658-.663 48.422 48.422 0 00-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 01-.61-.58v0z',
+};
+
+const bgColors: Record<string, string> = {
+  peliculas: 'from-blue-500/5 to-transparent',
+  series: 'from-emerald-500/5 to-transparent',
+  videojuegos: 'from-orange-500/5 to-transparent',
+};
+
+let categories: Awaited<ReturnType<typeof getCategories>> = [];
+let reviewsByCategory: Record<string, any[]> = {};
+let error = '';
+
+try {
+  categories = await getCategories();
+
+  const results = await Promise.all(
+    categories.map(({ attributes }) =>
+      getReviews({ category: attributes.slug, page: 1, pageSize: 3, sortBy: 'rating' })
+    )
+  );
+
+  categories.forEach(({ attributes }, index) => {
+    reviewsByCategory[attributes.slug] = results[index].data;
+  });
+} catch (e) {
+  error = 'No se pudieron cargar las categorias.';
+}
+---
+
+<Layout
+  title="Categorias"
+  description="Explora nuestras categorias de contenido: peliculas, series y videojuegos. Encuentra resenas por el tipo de entretenimiento que prefieras."
+>
+  <!-- Page Header -->
+  <section class="section pb-0">
+    <div class="container">
+      <div class="max-w-2xl mb-12">
+        <span class="inline-block badge bg-primary/10 text-primary mb-3 font-sans uppercase tracking-wider text-xs">
+          Explorar
+        </span>
+        <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
+          Categorias
+        </h1>
+        <p class="text-lg text-muted-foreground leading-relaxed text-pretty">
+          Navega por nuestras categorias y descubre las mejores resenas de peliculas,
+          series y videojuegos organizadas para ti.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {error && (
+    <section class="section">
+      <div class="container text-center">
+        <p class="text-destructive text-lg">{error}</p>
+      </div>
+    </section>
+  )}
+
+  {!error && categories.length === 0 && (
+    <section class="section">
+      <div class="container text-center py-20">
+        <p class="text-muted-foreground text-lg font-sans">No se encontraron categorias.</p>
+      </div>
+    </section>
+  )}
+
+  {!error && categories.length > 0 && (
+    <section class="section pt-0" aria-labelledby="categories-overview">
+      <div class="container">
+        <!-- Category Cards Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          {categories.map(({ attributes }) => (
+            <a
+              href={`#category-${attributes.slug}`}
+              class="group relative block overflow-hidden rounded-xl border border-border bg-card hover:border-primary/50 transition-all"
+            >
+              <div class="aspect-video overflow-hidden">
+                <img
+                  src={attributes.image}
+                  alt={`Categoria: ${attributes.name}`}
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+              </div>
+              <div class="absolute bottom-0 left-0 right-0 p-5">
+                <div class="flex items-center gap-2 mb-2">
+                  <svg class="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d={categoryIcons[attributes.slug] || ''} />
+                  </svg>
+                  <h3 class="font-serif text-xl font-bold text-white">{attributes.name}</h3>
+                </div>
+                <p class="text-sm text-white/70 line-clamp-2">{attributes.description}</p>
+                <span class="inline-block mt-2 text-xs font-sans font-medium text-primary">
+                  {attributes.count} {attributes.count === 1 ? 'resena' : 'resenas'} &darr;
+                </span>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        <!-- Category Sections with Reviews -->
+        {categories.map(({ attributes }) => {
+          const catReviews = reviewsByCategory[attributes.slug] || [];
+          return (
+            <section
+              id={`category-${attributes.slug}`}
+              class="py-12 mb-8 border-t border-border scroll-mt-20"
+              aria-labelledby={`heading-${attributes.slug}`}
+            >
+              <div class={`rounded-xl bg-gradient-to-r ${bgColors[attributes.slug] || ''} p-6 md:p-8 mb-8`}>
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                  <div>
+                    <h2
+                      id={`heading-${attributes.slug}`}
+                      class="font-serif text-2xl md:text-3xl font-bold text-foreground mb-2"
+                    >
+                      {attributes.name}
+                    </h2>
+                    <p class="text-muted-foreground font-sans max-w-lg">{attributes.description}</p>
+                  </div>
+                  <a
+                    href={`/reviews/?category=${attributes.slug}`}
+                    class="btn btn-primary text-sm shrink-0"
+                  >
+                    Ver todas &rarr;
+                  </a>
+                </div>
+              </div>
+
+              {catReviews.length > 0 ? (
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {catReviews.map(({ attributes: rev }: any) => (
+                    <ReviewCard
+                      title={rev.title}
+                      slug={rev.slug}
+                      excerpt={rev.excerpt}
+                      rating={rev.rating}
+                      category={rev.category}
+                      categoryLabel={rev.categoryLabel}
+                      image={rev.image}
+                      author={rev.author}
+                      publishedAt={rev.publishedAt}
+                      genre={rev.genre}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p class="text-center text-muted-foreground py-8 font-sans">
+                  No hay resenas en esta categoria todavia.
+                </p>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </section>
+  )}
+</Layout>

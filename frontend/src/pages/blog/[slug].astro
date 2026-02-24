@@ -1,0 +1,166 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import { getBlogPostBySlug, getBlogPosts, formatDate, calculateReadingTime } from '../../lib/api';
+import { blogData } from '../../lib/mockData';
+
+export async function getStaticPaths() {
+  return blogData.map(({ attributes }) => ({
+    params: { slug: attributes.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+let post;
+let relatedPosts;
+let error = '';
+
+try {
+  post = await getBlogPostBySlug(slug as string);
+
+  if (!post) {
+    return Astro.redirect('/404');
+  }
+
+  const allPosts = await getBlogPosts({ page: 1, pageSize: 4 });
+  relatedPosts = allPosts.data.filter(
+    (p) => p.attributes.slug !== slug
+  ).slice(0, 3);
+} catch (e) {
+  error = 'No se pudo cargar el artículo.';
+}
+
+const { title, excerpt, content, image, author, publishedAt, category, seo } = post?.attributes || {};
+const readingTime = content ? calculateReadingTime(content) : 0;
+---
+
+<Layout
+  title={seo?.metaTitle || title || 'Blog'}
+  description={seo?.metaDescription || excerpt}
+>
+  {error ? (
+    <section class="section">
+      <div class="container text-center">
+        <p class="text-destructive text-lg">{error}</p>
+      </div>
+    </section>
+  ) : post ? (
+    <>
+      <!-- Hero Image -->
+      <div class="relative h-64 md:h-96 overflow-hidden">
+        <img src={image} alt={`Portada de ${title}`} class="w-full h-full object-cover" />
+        <div class="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"></div>
+      </div>
+
+      <article class="section -mt-24 relative z-10">
+        <div class="container">
+          <div class="max-w-3xl mx-auto">
+            <header class="mb-10">
+              <span class="badge bg-primary/10 text-primary mb-4">{category}</span>
+              <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
+                {title}
+              </h1>
+              <p class="text-lg text-muted-foreground leading-relaxed mb-6 text-pretty">
+                {excerpt}
+              </p>
+              <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground font-sans pb-6 border-b border-border">
+                <span>Por <strong class="text-foreground">{author}</strong></span>
+                <span>|</span>
+                <time datetime={publishedAt}>{formatDate(publishedAt)}</time>
+                <span>|</span>
+                <span>{readingTime} min de lectura</span>
+              </div>
+            </header>
+
+            <div class="prose-content mb-16">
+              <Fragment set:html={content} />
+            </div>
+
+            <!-- Back link -->
+            <div class="border-t border-border pt-6 mb-16">
+              <a href="/blog/" class="btn btn-secondary">
+                &larr; Volver al blog
+              </a>
+            </div>
+
+            <!-- Related Posts -->
+            {relatedPosts && relatedPosts.length > 0 && (
+              <section aria-labelledby="related-posts-heading">
+                <h2 id="related-posts-heading" class="font-serif text-2xl font-bold text-foreground mb-6">
+                  Más artículos
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {relatedPosts.map(({ attributes: p }) => (
+                    <BlogCard
+                      title={p.title}
+                      slug={p.slug}
+                      excerpt={p.excerpt}
+                      image={p.image}
+                      author={p.author}
+                      publishedAt={p.publishedAt}
+                      category={p.category}
+                      content={p.content}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
+      </article>
+    </>
+  ) : null}
+</Layout>
+
+<style>
+  .prose-content {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--color-foreground);
+  }
+  .prose-content :global(h2) {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--color-foreground);
+  }
+  .prose-content :global(h3) {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--color-foreground);
+  }
+  .prose-content :global(p) {
+    margin-bottom: 1.25rem;
+    color: var(--color-muted-foreground);
+  }
+  .prose-content :global(strong) {
+    color: var(--color-foreground);
+    font-weight: 600;
+  }
+  .prose-content :global(a) {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+  .prose-content :global(ul),
+  .prose-content :global(ol) {
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+    color: var(--color-muted-foreground);
+  }
+  .prose-content :global(li) {
+    margin-bottom: 0.5rem;
+  }
+  .prose-content :global(blockquote) {
+    border-left: 3px solid var(--color-primary);
+    padding-left: 1rem;
+    margin: 1.5rem 0;
+    font-style: italic;
+    color: var(--color-muted-foreground);
+  }
+</style>

@@ -1,0 +1,36 @@
+---
+interface Props {
+  count?: number;
+  type?: 'card' | 'line' | 'hero';
+}
+
+const { count = 3, type = 'card' } = Astro.props;
+---
+
+{type === 'card' && (
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {Array.from({ length: count }).map(() => (
+      <div class="border border-border rounded-lg overflow-hidden">
+        <div class="skeleton h-48 w-full"></div>
+        <div class="p-5 flex flex-col gap-3">
+          <div class="skeleton h-3 w-20"></div>
+          <div class="skeleton h-5 w-3/4"></div>
+          <div class="skeleton h-3 w-full"></div>
+          <div class="skeleton h-3 w-2/3"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
+{type === 'line' && (
+  <div class="flex flex-col gap-3">
+    {Array.from({ length: count }).map(() => (
+      <div class="skeleton h-4 w-full"></div>
+    ))}
+  </div>
+)}
+
+{type === 'hero' && (
+  <div class="skeleton h-96 w-full rounded-lg"></div>
+)}

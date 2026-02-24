@@ -1,0 +1,156 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ReviewCard from '../../components/ReviewCard.astro';
+import { getReviews } from '../../lib/api';
+import { categoriesData } from '../../lib/mockData';
+
+export function getStaticPaths() {
+  return categoriesData.map(({ attributes }) => ({
+    params: { slug: attributes.slug },
+    props: { category: attributes },
+  }));
+}
+
+interface Props {
+  category: {
+    name: string;
+    slug: string;
+    description: string;
+    image: string;
+    count: number;
+  };
+}
+
+const { category } = Astro.props;
+const { slug } = Astro.params;
+
+let reviews: Awaited<ReturnType<typeof getReviews>> | null = null;
+let error = '';
+
+try {
+  reviews = await getReviews({
+    category: slug as string,
+    sortBy: 'rating',
+    page: 1,
+    pageSize: 50,
+  });
+} catch (e) {
+  error = 'No se pudieron cargar las resenas de esta categoria.';
+}
+
+const reviewList = reviews?.data || [];
+const total = reviews?.meta?.pagination?.total || 0;
+---
+
+<Layout
+  title={`${category.name} - Resenas`}
+  description={category.description}
+>
+  <!-- Category Hero -->
+  <section class="relative overflow-hidden">
+    <div class="aspect-[4/1] max-h-72">
+      <img
+        src={category.image}
+        alt={`Categoria: ${category.name}`}
+        class="w-full h-full object-cover"
+      />
+    </div>
+    <div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
+    <div class="absolute bottom-0 left-0 right-0">
+      <div class="container pb-8">
+        <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 text-balance">
+          {category.name}
+        </h1>
+        <p class="text-muted-foreground font-sans max-w-xl">{category.description}</p>
+        <p class="text-sm text-muted-foreground font-sans mt-2">
+          {total} {total === 1 ? 'resena' : 'resenas'}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <!-- Top bar -->
+      <div class="flex items-center justify-between mb-8">
+        <a href="/categories/" class="text-sm text-muted-foreground hover:text-primary font-sans transition-colors">
+          &larr; Volver a categorias
+        </a>
+        <div class="flex items-center gap-3">
+          <label for="sort-select" class="text-sm text-muted-foreground font-sans">Ordenar:</label>
+          <select
+            id="sort-select"
+            class="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-sans"
+          >
+            <option value="rating">Mejor valoradas</option>
+            <option value="date">Mas recientes</option>
+            <option value="title">Alfabetico</option>
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <div class="text-center py-20">
+          <p class="text-destructive text-lg">{error}</p>
+        </div>
+      )}
+
+      {!error && reviewList.length === 0 && (
+        <div class="text-center py-20">
+          <p class="text-muted-foreground text-lg font-sans">No hay resenas en esta categoria todavia.</p>
+          <a href="/reviews/" class="btn btn-primary mt-4">Ver todas las resenas</a>
+        </div>
+      )}
+
+      {!error && reviewList.length > 0 && (
+        <div id="reviews-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {reviewList.map(({ attributes }: any) => (
+            <div
+              class="review-item"
+              data-title={attributes.title.toLowerCase()}
+              data-rating={String(attributes.rating)}
+              data-date={attributes.publishedAt}
+            >
+              <ReviewCard
+                title={attributes.title}
+                slug={attributes.slug}
+                excerpt={attributes.excerpt}
+                rating={attributes.rating}
+                category={attributes.category}
+                categoryLabel={attributes.categoryLabel}
+                image={attributes.image}
+                author={attributes.author}
+                publishedAt={attributes.publishedAt}
+                genre={attributes.genre}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+</Layout>
+
+<script is:inline>
+  const select = document.getElementById('sort-select');
+  const grid = document.getElementById('reviews-grid');
+  if (select && grid) {
+    select.addEventListener('change', function() {
+      const items = Array.from(grid.querySelectorAll('.review-item'));
+      items.sort(function(a, b) {
+        var sortVal = select.value;
+        if (sortVal === 'rating') {
+          return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
+        } else if (sortVal === 'date') {
+          return new Date(b.dataset.date).getTime() - new Date(a.dataset.date).getTime();
+        } else if (sortVal === 'title') {
+          return a.dataset.title.localeCompare(b.dataset.title, 'es');
+        }
+        return 0;
+      });
+      items.forEach(function(item) {
+        grid.appendChild(item);
+      });
+    });
+  }
+</script>

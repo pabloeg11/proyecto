@@ -1,0 +1,60 @@
+---
+import { formatDate, calculateReadingTime } from '../lib/api';
+
+interface Props {
+  title: string;
+  slug: string;
+  excerpt: string;
+  image: string;
+  author: string;
+  publishedAt: string;
+  category: string;
+  content: string;
+}
+
+const { title, slug, excerpt, image, author, publishedAt, category, content } = Astro.props;
+
+const readingTime = calculateReadingTime(content);
+---
+
+<article class="card group">
+  <a href={`/blog/${slug}/`} class="block" aria-label={`Leer artículo: ${title}`}>
+    <div class="relative overflow-hidden aspect-video">
+      <img
+        src={image}
+        alt={`Imagen de portada del artículo ${title}`}
+        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        loading="lazy"
+        decoding="async"
+      />
+      <div class="absolute top-3 left-3 badge bg-card/90 text-card-foreground backdrop-blur-sm">
+        {category}
+      </div>
+    </div>
+
+    <div class="p-5">
+      <div class="flex items-center gap-2 mb-2">
+        <time class="text-xs text-muted-foreground font-sans" datetime={publishedAt}>
+          {formatDate(publishedAt)}
+        </time>
+        <span class="text-muted-foreground">|</span>
+        <span class="text-xs text-muted-foreground font-sans">{readingTime} min de lectura</span>
+      </div>
+
+      <h3 class="font-serif text-lg font-bold text-card-foreground mb-2 group-hover:text-primary transition-colors text-balance">
+        {title}
+      </h3>
+
+      <p class="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-3">
+        {excerpt}
+      </p>
+
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-muted-foreground font-sans">Por {author}</span>
+        <span class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity font-sans">
+          Leer artículo &rarr;
+        </span>
+      </div>
+    </div>
+  </a>
+</article>

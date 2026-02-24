@@ -1,0 +1,182 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import BlogCard from '../../components/BlogCard.astro';
+import { getBlogPosts } from '../../lib/api';
+
+const url = new URL(Astro.request.url);
+const searchParam = url.searchParams.get('search') || '';
+const pageParam = parseInt(url.searchParams.get('page') || '1', 10);
+
+let posts;
+let error = '';
+
+try {
+  posts = await getBlogPosts({
+    page: pageParam,
+    pageSize: 6,
+    search: searchParam || undefined,
+  });
+} catch (e) {
+  error = 'No se pudieron cargar los artículos del blog.';
+}
+
+const { page, pageCount, total } = posts?.meta?.pagination || { page: 1, pageCount: 1, total: 0 };
+---
+
+<Layout
+  title="Blog"
+  description="Artículos, listas, opiniones y análisis sobre cine, series y videojuegos en el blog de CritiX."
+>
+  <section class="section">
+    <div class="container">
+      <!-- Page Header -->
+      <div class="max-w-2xl mb-12">
+        <span class="inline-block badge bg-primary/10 text-primary mb-3 font-sans uppercase tracking-wider text-xs">
+          Blog
+        </span>
+        <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
+          Nuestro blog
+        </h1>
+        <p class="text-lg text-muted-foreground leading-relaxed text-pretty">
+          Artículos, listas, análisis en profundidad y opiniones de nuestro equipo editorial
+          sobre el mundo del entretenimiento.
+        </p>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="bg-card border border-border rounded-lg p-4 mb-10">
+        <form id="blog-search-form" method="GET" action="/blog/" class="flex gap-4">
+          <div class="flex-1 relative">
+            <label for="blog-search-input" class="sr-only">Buscar artículos</label>
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              id="blog-search-input"
+              type="search"
+              name="search"
+              value={searchParam}
+              placeholder="Buscar artículos por título, autor, categoría..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring font-sans"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Buscar</button>
+        </form>
+        {searchParam && (
+          <div class="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+            <span class="text-xs text-muted-foreground font-sans">Resultados para:</span>
+            <span class="badge bg-primary/10 text-primary">"{searchParam}"</span>
+            <a href="/blog/" class="text-xs text-destructive hover:underline font-sans ml-auto">
+              Limpiar
+            </a>
+          </div>
+        )}
+      </div>
+
+      <!-- Results info -->
+      <p class="text-sm text-muted-foreground font-sans mb-6">
+        {total} {total === 1 ? 'artículo encontrado' : 'artículos encontrados'}
+      </p>
+
+      {error ? (
+        <div class="text-center py-20">
+          <p class="text-destructive text-lg">{error}</p>
+        </div>
+      ) : posts && posts.data.length > 0 ? (
+        <>
+          <!-- Featured first post -->
+          {pageParam === 1 && !searchParam && posts.data.length > 0 && (() => {
+            const firstPost = posts.data[0].attributes;
+            return (
+              <a href={`/blog/${firstPost.slug}/`} class="group block mb-10 relative overflow-hidden rounded-xl" aria-label={`Leer artículo: ${firstPost.title}`}>
+                <div class="aspect-[21/9]">
+                  <img
+                    src={firstPost.image}
+                    alt={`Portada del artículo ${firstPost.title}`}
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+                  <span class="badge bg-white/20 text-white backdrop-blur-sm mb-3">{firstPost.category}</span>
+                  <h2 class="font-serif text-2xl md:text-3xl font-bold text-white mb-2 group-hover:text-primary transition-colors text-balance">
+                    {firstPost.title}
+                  </h2>
+                  <p class="text-white/80 text-sm md:text-base max-w-2xl leading-relaxed line-clamp-2 mb-3">
+                    {firstPost.excerpt}
+                  </p>
+                  <span class="text-xs text-white/60 font-sans">Por {firstPost.author}</span>
+                </div>
+              </a>
+            );
+          })()}
+
+          <!-- Blog Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {posts.data.slice(pageParam === 1 && !searchParam ? 1 : 0).map(({ attributes }) => (
+              <BlogCard
+                title={attributes.title}
+                slug={attributes.slug}
+                excerpt={attributes.excerpt}
+                image={attributes.image}
+                author={attributes.author}
+                publishedAt={attributes.publishedAt}
+                category={attributes.category}
+                content={attributes.content}
+              />
+            ))}
+          </div>
+
+          <!-- Pagination -->
+          {pageCount > 1 && (
+            <nav class="flex items-center justify-center gap-2" aria-label="Paginación del blog">
+              {page > 1 && (
+                <a
+                  href={`/blog/?page=${page - 1}${searchParam ? `&search=${searchParam}` : ''}`}
+                  class="btn btn-secondary text-sm"
+                  aria-label="Página anterior"
+                >
+                  &larr; Anterior
+                </a>
+              )}
+              {Array.from({ length: pageCount }, (_, i) => i + 1).map((pageNum) => (
+                <a
+                  href={`/blog/?page=${pageNum}${searchParam ? `&search=${searchParam}` : ''}`}
+                  class={`w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium font-sans transition-colors ${
+                    pageNum === page
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-muted'
+                  }`}
+                  aria-label={`Ir a página ${pageNum}`}
+                  aria-current={pageNum === page ? 'page' : undefined}
+                >
+                  {pageNum}
+                </a>
+              ))}
+              {page < pageCount && (
+                <a
+                  href={`/blog/?page=${page + 1}${searchParam ? `&search=${searchParam}` : ''}`}
+                  class="btn btn-secondary text-sm"
+                  aria-label="Página siguiente"
+                >
+                  Siguiente &rarr;
+                </a>
+              )}
+            </nav>
+          )}
+        </>
+      ) : (
+        <div class="text-center py-20">
+          <svg class="w-16 h-16 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.331 0 4.512.89 6.042 2.36C13.488 18.89 15.669 18 18 18a8.987 8.987 0 013-.512V4.262a8.968 8.968 0 00-3 .512A8.967 8.967 0 0012 6.042z" />
+          </svg>
+          <h2 class="font-serif text-xl font-bold text-foreground mb-2">No se encontraron artículos</h2>
+          <p class="text-muted-foreground font-sans mb-4">
+            Intenta con otros términos de búsqueda.
+          </p>
+          <a href="/blog/" class="btn btn-primary">Ver todos los artículos</a>
+        </div>
+      )}
+    </div>
+  </section>
+</Layout>

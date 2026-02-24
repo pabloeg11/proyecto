@@ -1,0 +1,240 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ReviewCard from '../../components/ReviewCard.astro';
+import { getReviews, getCategories } from '../../lib/api';
+
+// Parámetros de URL para filtros, búsqueda, ordenación y paginación
+const url = new URL(Astro.request.url);
+const searchParam = url.searchParams.get('search') || '';
+const categoryParam = url.searchParams.get('category') || '';
+const sortParam = (url.searchParams.get('sort') as 'date' | 'rating' | 'title') || 'date';
+const pageParam = parseInt(url.searchParams.get('page') || '1', 10);
+
+let reviews, categories;
+let error = '';
+
+try {
+  [reviews, categories] = await Promise.all([
+    getReviews({
+      category: categoryParam || undefined,
+      search: searchParam || undefined,
+      sortBy: sortParam,
+      page: pageParam,
+      pageSize: 6,
+    }),
+    getCategories(),
+  ]);
+} catch (e) {
+  error = 'No se pudieron cargar las reseñas. Inténtalo de nuevo más tarde.';
+}
+
+const { page, pageCount, total } = reviews?.meta?.pagination || { page: 1, pageCount: 1, total: 0 };
+---
+
+<Layout
+  title="Reseñas"
+  description="Explora todas las reseñas de películas, series y videojuegos en CritiX. Filtra, busca y ordena según tus preferencias."
+>
+  <section class="section">
+    <div class="container">
+      <!-- Page Header -->
+      <div class="mb-10">
+        <h1 class="font-serif text-3xl md:text-4xl font-bold text-foreground mb-2">
+          Todas las reseñas
+        </h1>
+        <p class="text-muted-foreground font-sans">
+          {total} {total === 1 ? 'reseña encontrada' : 'reseñas encontradas'}
+        </p>
+      </div>
+
+      <!-- Filters Bar -->
+      <div class="bg-card border border-border rounded-lg p-4 mb-8">
+        <form id="filters-form" method="GET" action="/reviews/" class="flex flex-col lg:flex-row gap-4">
+          <!-- Search -->
+          <div class="flex-1">
+            <label for="search-input" class="sr-only">Buscar reseñas</label>
+            <div class="relative">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                id="search-input"
+                type="search"
+                name="search"
+                value={searchParam}
+                placeholder="Buscar por título, autor, género..."
+                class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring font-sans"
+              />
+            </div>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="flex gap-3">
+            <div>
+              <label for="category-select" class="sr-only">Categoría</label>
+              <select
+                id="category-select"
+                name="category"
+                class="px-4 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-sans"
+              >
+                <option value="">Todas las categorías</option>
+                {categories?.map(({ attributes }) => (
+                  <option value={attributes.slug} selected={categoryParam === attributes.slug}>
+                    {attributes.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <!-- Sort -->
+            <div>
+              <label for="sort-select" class="sr-only">Ordenar por</label>
+              <select
+                id="sort-select"
+                name="sort"
+                class="px-4 py-2.5 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-sans"
+              >
+                <option value="date" selected={sortParam === 'date'}>Más recientes</option>
+                <option value="rating" selected={sortParam === 'rating'}>Mejor valoradas</option>
+                <option value="title" selected={sortParam === 'title'}>Alfabético</option>
+              </select>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn btn-primary">
+              Filtrar
+            </button>
+          </div>
+        </form>
+
+        <!-- Active Filters -->
+        {(searchParam || categoryParam) && (
+          <div class="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+            <span class="text-xs text-muted-foreground font-sans">Filtros activos:</span>
+            {searchParam && (
+              <span class="badge bg-primary/10 text-primary">
+                Búsqueda: "{searchParam}"
+              </span>
+            )}
+            {categoryParam && (
+              <span class="badge bg-primary/10 text-primary">
+                Categoría: {categories?.find(c => c.attributes.slug === categoryParam)?.attributes.name || categoryParam}
+              </span>
+            )}
+            <a href="/reviews/" class="text-xs text-destructive hover:underline font-sans ml-auto">
+              Limpiar filtros
+            </a>
+          </div>
+        )}
+      </div>
+
+      {error ? (
+        <div class="text-center py-20">
+          <p class="text-destructive text-lg">{error}</p>
+        </div>
+      ) : reviews && reviews.data.length > 0 ? (
+        <>
+          <!-- Reviews Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {reviews.data.map(({ attributes }) => (
+              <ReviewCard
+                title={attributes.title}
+                slug={attributes.slug}
+                excerpt={attributes.excerpt}
+                rating={attributes.rating}
+                category={attributes.category}
+                categoryLabel={attributes.categoryLabel}
+                image={attributes.image}
+                author={attributes.author}
+                publishedAt={attributes.publishedAt}
+                genre={attributes.genre}
+              />
+            ))}
+          </div>
+
+          <!-- Pagination -->
+          {pageCount > 1 && (
+            <nav class="flex items-center justify-center gap-2" aria-label="Paginación de reseñas">
+              {page > 1 && (
+                <a
+                  href={`/reviews/?page=${page - 1}${categoryParam ? `&category=${categoryParam}` : ''}${searchParam ? `&search=${searchParam}` : ''}${sortParam !== 'date' ? `&sort=${sortParam}` : ''}`}
+                  class="btn btn-secondary text-sm"
+                  aria-label="Página anterior"
+                >
+                  &larr; Anterior
+                </a>
+              )}
+
+              {Array.from({ length: pageCount }, (_, i) => i + 1).map((pageNum) => (
+                <a
+                  href={`/reviews/?page=${pageNum}${categoryParam ? `&category=${categoryParam}` : ''}${searchParam ? `&search=${searchParam}` : ''}${sortParam !== 'date' ? `&sort=${sortParam}` : ''}`}
+                  class={`w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium font-sans transition-colors ${
+                    pageNum === page
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-muted'
+                  }`}
+                  aria-label={`Ir a página ${pageNum}`}
+                  aria-current={pageNum === page ? 'page' : undefined}
+                >
+                  {pageNum}
+                </a>
+              ))}
+
+              {page < pageCount && (
+                <a
+                  href={`/reviews/?page=${page + 1}${categoryParam ? `&category=${categoryParam}` : ''}${searchParam ? `&search=${searchParam}` : ''}${sortParam !== 'date' ? `&sort=${sortParam}` : ''}`}
+                  class="btn btn-secondary text-sm"
+                  aria-label="Página siguiente"
+                >
+                  Siguiente &rarr;
+                </a>
+              )}
+            </nav>
+          )}
+        </>
+      ) : (
+        <!-- Empty state -->
+        <div class="text-center py-20">
+          <svg class="w-16 h-16 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <h2 class="font-serif text-xl font-bold text-foreground mb-2">No se encontraron reseñas</h2>
+          <p class="text-muted-foreground font-sans mb-4">
+            Intenta ajustar tus filtros o términos de búsqueda.
+          </p>
+          <a href="/reviews/" class="btn btn-primary">
+            Ver todas las reseñas
+          </a>
+        </div>
+      )}
+    </div>
+  </section>
+</Layout>
+
+<script is:inline>
+  // Client-side: auto-submit form on select changes for better UX
+  document.querySelectorAll('#filters-form select').forEach(function(select) {
+    select.addEventListener('change', function() {
+      document.getElementById('filters-form').submit();
+    });
+  });
+
+  // Client-side dynamic search with regex and debounce
+  const searchInput = document.getElementById('search-input');
+  let debounceTimer;
+
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        // Validación con expresión regular: solo permitir caracteres válidos
+        const value = searchInput.value;
+        const validSearchRegex = /^[a-zA-ZáéíóúñÁÉÍÓÚÑüÜ0-9\s\-:.,]+$/;
+
+        if (value === '' || validSearchRegex.test(value)) {
+          document.getElementById('filters-form').submit();
+        }
+      }, 500);
+    });
+  }
+</script>
