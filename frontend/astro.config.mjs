@@ -3,7 +3,7 @@ import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-  site: 'https://critix-reviews.vercel.app',
+  site: 'https://zonaresenas-reviews.vercel.app',
   integrations: [
     tailwind({
       applyBaseStyles: false,

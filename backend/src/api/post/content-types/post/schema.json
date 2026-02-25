@@ -1,10 +1,10 @@
 {
   "kind": "collectionType",
-  "collectionName": "reviews",
+  "collectionName": "posts",
   "info": {
-    "singularName": "review",
-    "pluralName": "reviews",
-    "displayName": "review"
+    "singularName": "post",
+    "pluralName": "posts",
+    "displayName": "post"
   },
   "options": {
     "draftAndPublish": true
@@ -15,7 +15,8 @@
       "type": "string"
     },
     "slug": {
-      "type": "string"
+      "type": "uid",
+      "targetField": "title"
     },
     "excerpt": {
       "type": "text"
@@ -23,12 +24,9 @@
     "content": {
       "type": "richtext"
     },
-    "rating": {
-      "type": "integer"
-    },
     "cover": {
       "type": "media",
-      "multiple": true,
+      "multiple": false,
       "allowedTypes": [
         "images",
         "files",
@@ -36,18 +34,8 @@
         "audios"
       ]
     },
-    "type": {
-      "type": "enumeration",
-      "enum": [
-        "pelicula",
-        "serie",
-        "videojuego"
-      ]
-    },
-    "seo": {
-      "type": "component",
-      "component": "seo.seo",
-      "repeatable": false
+    "publishedDate": {
+      "type": "date"
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "kind": "singleType",
+  "kind": "collectionType",
   "collectionName": "globals",
   "info": {
     "singularName": "global",
@@ -10,5 +10,27 @@
     "draftAndPublish": true
   },
   "pluginOptions": {},
-  "attributes": {}
+  "attributes": {
+    "siteName": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "footerText": {
+      "type": "text"
+    },
+    "defaultSeo": {
+      "type": "component",
+      "component": "seo.default-seo",
+      "repeatable": false
+    }
+  }
 }
