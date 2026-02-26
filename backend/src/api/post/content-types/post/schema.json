@@ -36,6 +36,17 @@
     },
     "publishedDate": {
       "type": "date"
+    },
+    "category": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::author.author",
+      "mappedBy": "text"
+    },
+    "seo": {
+      "type": "component",
+      "component": "seo.seo-category",
+      "repeatable": true
     }
   }
 }

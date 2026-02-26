@@ -26,6 +26,9 @@
     "rating": {
       "type": "integer"
     },
+    "publishedDate": {
+      "type": "date"
+    },
     "cover": {
       "type": "media",
       "multiple": true,
@@ -35,6 +38,21 @@
         "videos",
         "audios"
       ]
+    },
+    "genre": {
+      "type": "string"
+    },
+    "year": {
+      "type": "integer"
+    },
+    "categories": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::category.category",
+      "mappedBy": "category"
+    },
+    "featured": {
+      "type": "boolean"
     },
     "type": {
       "type": "enumeration",

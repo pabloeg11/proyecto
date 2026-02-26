@@ -3,9 +3,15 @@ import type { Schema, Struct } from '@strapi/strapi';
 export interface SeoDefaultSeo extends Struct.ComponentSchema {
   collectionName: 'components_seo_default_seos';
   info: {
-    displayName: 'defaultSeo';
+    displayName: 'seo.meta';
   };
-  attributes: {};
+  attributes: {
+    canonicalURL: Schema.Attribute.String;
+    metaDescription: Schema.Attribute.Text;
+    metaRobots: Schema.Attribute.Enumeration<['noindex', 'nofollow']>;
+    metaTitle: Schema.Attribute.String;
+    ogImage: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'>;
+  };
 }
 
 export interface SeoSeo extends Struct.ComponentSchema {

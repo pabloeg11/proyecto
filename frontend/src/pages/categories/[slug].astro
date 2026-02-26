@@ -1,33 +1,28 @@
 ---
+export const prerender = false;
+
 import Layout from '../../layouts/Layout.astro';
 import ReviewCard from '../../components/ReviewCard.astro';
 import { getReviews } from '../../lib/api';
-import { categoriesData } from '../../lib/mockData';
 
-export function getStaticPaths() {
-  return categoriesData.map(({ attributes }) => ({
-    params: { slug: attributes.slug },
-    props: { category: attributes },
-  }));
-}
-
-interface Props {
-  category: {
-    name: string;
-    slug: string;
-    description: string;
-    image: string;
-    count: number;
-  };
-}
-
-const { category } = Astro.props;
 const { slug } = Astro.params;
 
 let reviews: Awaited<ReturnType<typeof getReviews>> | null = null;
 let error = '';
+let category: any = null;
 
 try {
+  // Obtener categoría por slug desde el endpoint
+  const categoriesResponse = await fetch(
+    `http://localhost:1337/api/categories?filters[slug][$eq]=${encodeURIComponent(slug as string)}&populate=image`
+  );
+  const categoriesData = await categoriesResponse.json();
+  category = categoriesData.data[0]?.attributes;
+
+  if (!category) {
+    return Astro.redirect('/404');
+  }
+
   reviews = await getReviews({
     category: slug as string,
     sortBy: 'rating',

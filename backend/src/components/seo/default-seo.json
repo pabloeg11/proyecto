@@ -1,9 +1,36 @@
 {
   "collectionName": "components_seo_default_seos",
   "info": {
-    "displayName": "defaultSeo"
+    "displayName": "seo.meta"
   },
   "options": {},
-  "attributes": {},
+  "attributes": {
+    "metaTitle": {
+      "type": "string"
+    },
+    "metaDescription": {
+      "type": "text"
+    },
+    "metaRobots": {
+      "type": "enumeration",
+      "enum": [
+        "noindex",
+        "nofollow"
+      ]
+    },
+    "canonicalURL": {
+      "type": "string"
+    },
+    "ogImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  },
   "config": {}
 }

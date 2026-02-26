@@ -19,6 +19,9 @@
     },
     "message": {
       "type": "text"
+    },
+    "subject": {
+      "type": "text"
     }
   }
 }

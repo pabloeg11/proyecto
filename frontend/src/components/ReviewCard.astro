@@ -7,11 +7,11 @@ interface Props {
   excerpt: string;
   rating: number;
   category: string;
-  categoryLabel: string;
+  categoryLabel?: string;
   image: string;
   author: string;
   publishedAt: string;
-  genre: string;
+  genre?: string;
   featured?: boolean;
 }
 
@@ -21,11 +21,11 @@ const {
   excerpt,
   rating,
   category,
-  categoryLabel,
+  categoryLabel = '',
   image,
   author,
   publishedAt,
-  genre,
+  genre = '',
   featured = false,
 } = Astro.props;
 

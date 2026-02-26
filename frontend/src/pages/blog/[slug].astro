@@ -1,14 +1,9 @@
 ---
+export const prerender = false;
+
 import Layout from '../../layouts/Layout.astro';
 import BlogCard from '../../components/BlogCard.astro';
 import { getBlogPostBySlug, getBlogPosts, formatDate, calculateReadingTime } from '../../lib/api';
-import { blogData } from '../../lib/mockData';
-
-export async function getStaticPaths() {
-  return blogData.map(({ attributes }) => ({
-    params: { slug: attributes.slug },
-  }));
-}
 
 const { slug } = Astro.params;
 let post;
@@ -32,6 +27,10 @@ try {
 
 const { title, excerpt, content, image, author, publishedAt, category, seo } = post?.attributes || {};
 const readingTime = content ? calculateReadingTime(content) : 0;
+
+// Fallbacks para valores undefined
+const imageFallback = image || '/images/placeholder.jpg';
+const publishedAtFallback = publishedAt || new Date().toISOString();
 ---
 
 <Layout
@@ -48,7 +47,7 @@ const readingTime = content ? calculateReadingTime(content) : 0;
     <>
       <!-- Hero Image -->
       <div class="relative h-64 md:h-96 overflow-hidden">
-        <img src={image} alt={`Portada de ${title}`} class="w-full h-full object-cover" />
+        <img src={imageFallback} alt={`Portada de ${title}`} class="w-full h-full object-cover" />
         <div class="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"></div>
       </div>
 
@@ -66,7 +65,7 @@ const readingTime = content ? calculateReadingTime(content) : 0;
               <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground font-sans pb-6 border-b border-border">
                 <span>Por <strong class="text-foreground">{author}</strong></span>
                 <span>|</span>
-                <time datetime={publishedAt}>{formatDate(publishedAt)}</time>
+                <time datetime={publishedAtFallback}>{formatDate(publishedAtFallback)}</time>
                 <span>|</span>
                 <span>{readingTime} min de lectura</span>
               </div>
@@ -95,9 +94,9 @@ const readingTime = content ? calculateReadingTime(content) : 0;
                       title={p.title}
                       slug={p.slug}
                       excerpt={p.excerpt}
-                      image={p.image}
+                      image={p.image || '/images/placeholder.jpg'}
                       author={p.author}
-                      publishedAt={p.publishedAt}
+                      publishedAt={p.publishedAt || new Date().toISOString()}
                       category={p.category}
                       content={p.content}
                     />
