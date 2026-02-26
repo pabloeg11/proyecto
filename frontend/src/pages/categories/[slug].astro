@@ -1,52 +1,69 @@
 ---
 export const prerender = false;
 
-import Layout from '../../layouts/Layout.astro';
-import ReviewCard from '../../components/ReviewCard.astro';
-import { getReviews } from '../../lib/api';
+import Layout from "../../layouts/Layout.astro";
+import ReviewCard from "../../components/ReviewCard.astro";
+import { getReviews } from "../../lib/api";
 
 const { slug } = Astro.params;
 
-let reviews: Awaited<ReturnType<typeof getReviews>> | null = null;
-let error = '';
+let reviewsRes: any = null;
+let error = "";
 let category: any = null;
 
+const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337";
+
+function getStrapiMediaUrl(media: any): string | null {
+  const url = media?.data?.attributes?.url;
+  if (!url) return null;
+  return url.startsWith("http") ? url : `${STRAPI_URL}${url}`;
+}
+
 try {
-  // Obtener categoría por slug desde el endpoint
-  const categoriesResponse = await fetch(
-    `http://localhost:1337/api/categories?filters[slug][$eq]=${encodeURIComponent(slug as string)}&populate=image`
+  // 1) obtener la categoría por slug (strapi)
+  const res = await fetch(
+    `${STRAPI_URL}/api/categories?filters[slug][$eq]=${encodeURIComponent(
+      slug as string
+    )}&populate=image,seo`
   );
-  const categoriesData = await categoriesResponse.json();
-  category = categoriesData.data[0]?.attributes;
+  if (!res.ok) throw new Error("error categorias");
+  const json = await res.json();
+
+  const entry = json.data?.[0] ?? null;
+  category = entry?.attributes ?? null;
 
   if (!category) {
-    return Astro.redirect('/404');
+    return Astro.redirect("/404");
   }
 
-  reviews = await getReviews({
-    category: slug as string,
-    sortBy: 'rating',
+  // 2) obtener reviews filtradas por esa categoría (relación many-to-many: categories)
+  reviewsRes = await getReviews({
+    categorySlug: slug as string,
+    sortBy: "rating",
     page: 1,
     pageSize: 50,
   });
 } catch (e) {
-  error = 'No se pudieron cargar las resenas de esta categoria.';
+  error = "no se pudieron cargar las reseñas de esta categoría.";
 }
 
-const reviewList = reviews?.data || [];
-const total = reviews?.meta?.pagination?.total || 0;
+const reviewList = reviewsRes?.data ?? [];
+const total = reviewsRes?.meta?.pagination?.total ?? reviewList.length;
+
+// hero image
+const categoryImage =
+  getStrapiMediaUrl(category?.image) ?? "/images/placeholder.jpg";
 ---
 
 <Layout
-  title={`${category.name} - Resenas`}
-  description={category.description}
+  title={`${category?.name ?? "categoría"} - reseñas`}
+  description={category?.description ?? ""}
 >
-  <!-- Category Hero -->
   <section class="relative overflow-hidden">
     <div class="aspect-[4/1] max-h-72">
       <img
-        src={category.image}
-        alt={`Categoria: ${category.name}`}
+        src={categoryImage}
+        alt={`categoría: ${category?.name ?? ""}`}
         class="w-full h-full object-cover"
       />
     </div>
@@ -54,11 +71,13 @@ const total = reviews?.meta?.pagination?.total || 0;
     <div class="absolute bottom-0 left-0 right-0">
       <div class="container pb-8">
         <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 text-balance">
-          {category.name}
+          {category?.name}
         </h1>
-        <p class="text-muted-foreground font-sans max-w-xl">{category.description}</p>
+        {category?.description && (
+          <p class="text-muted-foreground font-sans max-w-xl">{category.description}</p>
+        )}
         <p class="text-sm text-muted-foreground font-sans mt-2">
-          {total} {total === 1 ? 'resena' : 'resenas'}
+          {total} {total === 1 ? "reseña" : "reseñas"}
         </p>
       </div>
     </div>
@@ -66,20 +85,20 @@ const total = reviews?.meta?.pagination?.total || 0;
 
   <section class="section">
     <div class="container">
-      <!-- Top bar -->
       <div class="flex items-center justify-between mb-8">
         <a href="/categories/" class="text-sm text-muted-foreground hover:text-primary font-sans transition-colors">
-          &larr; Volver a categorias
+          &larr; volver a categorías
         </a>
+
         <div class="flex items-center gap-3">
-          <label for="sort-select" class="text-sm text-muted-foreground font-sans">Ordenar:</label>
+          <label for="sort-select" class="text-sm text-muted-foreground font-sans">ordenar:</label>
           <select
             id="sort-select"
             class="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-sans"
           >
-            <option value="rating">Mejor valoradas</option>
-            <option value="date">Mas recientes</option>
-            <option value="title">Alfabetico</option>
+            <option value="rating">mejor valoradas</option>
+            <option value="date">más recientes</option>
+            <option value="title">alfabético</option>
           </select>
         </div>
       </div>
@@ -92,34 +111,49 @@ const total = reviews?.meta?.pagination?.total || 0;
 
       {!error && reviewList.length === 0 && (
         <div class="text-center py-20">
-          <p class="text-muted-foreground text-lg font-sans">No hay resenas en esta categoria todavia.</p>
-          <a href="/reviews/" class="btn btn-primary mt-4">Ver todas las resenas</a>
+          <p class="text-muted-foreground text-lg font-sans">no hay reseñas en esta categoría todavía.</p>
+          <a href="/reviews/" class="btn btn-primary mt-4">ver todas las reseñas</a>
         </div>
       )}
 
       {!error && reviewList.length > 0 && (
         <div id="reviews-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reviewList.map(({ attributes }: any) => (
-            <div
-              class="review-item"
-              data-title={attributes.title.toLowerCase()}
-              data-rating={String(attributes.rating)}
-              data-date={attributes.publishedAt}
-            >
-              <ReviewCard
-                title={attributes.title}
-                slug={attributes.slug}
-                excerpt={attributes.excerpt}
-                rating={attributes.rating}
-                category={attributes.category}
-                categoryLabel={attributes.categoryLabel}
-                image={attributes.image}
-                author={attributes.author}
-                publishedAt={attributes.publishedAt}
-                genre={attributes.genre}
-              />
-            </div>
-          ))}
+          {reviewList.map((item: any) => {
+            const a = item.attributes ?? {};
+
+            const reviewTitle = a.title ?? "";
+            const reviewSlug = a.slug ?? "";
+            const reviewExcerpt = a.excerpt ?? "";
+            const reviewRating = a.rating ?? 0;
+            const reviewDate = a.publishedAt ?? a.publishedDate ?? new Date().toISOString();
+
+            const coverUrl =
+              getStrapiMediaUrl(a.cover) ?? "/images/placeholder.jpg";
+
+            const categoryLabel =
+              a.categories?.data?.[0]?.attributes?.name ?? category?.name ?? "categoría";
+
+            return (
+              <div
+                class="review-item"
+                data-title={reviewTitle.toLowerCase()}
+                data-rating={String(reviewRating)}
+                data-date={reviewDate}
+              >
+                <ReviewCard
+                  title={reviewTitle}
+                  slug={reviewSlug}
+                  excerpt={reviewExcerpt}
+                  rating={reviewRating}
+                  category={categoryLabel}
+                  categoryLabel={categoryLabel}
+                  image={coverUrl}
+                  author={a.author ?? ""}
+                  publishedAt={reviewDate}
+                  genre={a.genre ?? ""}                 />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -129,9 +163,11 @@ const total = reviews?.meta?.pagination?.total || 0;
 <script is:inline>
   const select = document.getElementById('sort-select');
   const grid = document.getElementById('reviews-grid');
+
   if (select && grid) {
     select.addEventListener('change', function() {
       const items = Array.from(grid.querySelectorAll('.review-item'));
+
       items.sort(function(a, b) {
         var sortVal = select.value;
         if (sortVal === 'rating') {
@@ -143,6 +179,7 @@ const total = reviews?.meta?.pagination?.total || 0;
         }
         return 0;
       });
+
       items.forEach(function(item) {
         grid.appendChild(item);
       });

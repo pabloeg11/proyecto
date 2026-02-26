@@ -1,40 +1,65 @@
 ---
 export const prerender = false;
 
-import Layout from '../../layouts/Layout.astro';
-import BlogCard from '../../components/BlogCard.astro';
-import { getBlogPostBySlug, getBlogPosts, formatDate, calculateReadingTime } from '../../lib/api';
+import Layout from "../../layouts/Layout.astro";
+import BlogCard from "../../components/BlogCard.astro";
+import { getBlogPostBySlug, getBlogPosts, formatDate, calculateReadingTime } from "../../lib/api";
 
 const { slug } = Astro.params;
-let post;
-let relatedPosts;
-let error = '';
 
-try {
-  post = await getBlogPostBySlug(slug as string);
+let entry: any = null;
+let relatedPosts: any[] = [];
+let error = "";
 
-  if (!post) {
-    return Astro.redirect('/404');
-  }
-
-  const allPosts = await getBlogPosts({ page: 1, pageSize: 4 });
-  relatedPosts = allPosts.data.filter(
-    (p) => p.attributes.slug !== slug
-  ).slice(0, 3);
-} catch (e) {
-  error = 'No se pudo cargar el artículo.';
+// helper: sacar url de media de strapi (cover)
+function getStrapiMediaUrl(media: any): string | null {
+  const url = media?.data?.attributes?.url;
+  if (!url) return null;
+  // si strapi devuelve /uploads/..., lo convertimos a url completa
+  return url.startsWith("http") ? url : `${import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337"}${url}`;
 }
 
-const { title, excerpt, content, image, author, publishedAt, category, seo } = post?.attributes || {};
-const readingTime = content ? calculateReadingTime(content) : 0;
+try {
+  entry = await getBlogPostBySlug(slug as string);
 
-// Fallbacks para valores undefined
-const imageFallback = image || '/images/placeholder.jpg';
-const publishedAtFallback = publishedAt || new Date().toISOString();
+  if (!entry) {
+    return Astro.redirect("/404");
+  }
+
+  const allPosts = await getBlogPosts({ page: 1, pageSize: 6 });
+  relatedPosts = (allPosts.data ?? [])
+    .filter((p: any) => p.attributes?.slug !== slug)
+    .slice(0, 3);
+} catch (e) {
+  error = "no se pudo cargar el artículo.";
+}
+
+// datos seguros
+const post = entry?.attributes ?? null;
+
+const title = post?.title ?? "blog";
+const excerpt = post?.excerpt ?? "";
+const content = post?.content ?? "";
+const seo = post?.seo ?? null;
+
+// fecha: publishedAt (si draft/publish) o publishedDate (si la creaste)
+const publishedAtFallback =
+  post?.publishedAt ?? post?.publishedDate ?? new Date().toISOString();
+
+// categoría: si tienes relación categories, coge la primera
+const categoryName =
+  post?.categories?.data?.[0]?.attributes?.name ?? "blog";
+
+// imagen: cover media o placeholder
+const imageUrl =
+  getStrapiMediaUrl(post?.cover) ?? "/images/placeholder.jpg";
+
+// reading time
+const readingTime = content ? calculateReadingTime(content) : 0;
 ---
 
 <Layout
-  title={seo?.metaTitle || title || 'Blog'}
+  title={seo?.metaTitle || title}
   description={seo?.metaDescription || excerpt}
 >
   {error ? (
@@ -45,9 +70,8 @@ const publishedAtFallback = publishedAt || new Date().toISOString();
     </section>
   ) : post ? (
     <>
-      <!-- Hero Image -->
       <div class="relative h-64 md:h-96 overflow-hidden">
-        <img src={imageFallback} alt={`Portada de ${title}`} class="w-full h-full object-cover" />
+        <img src={imageUrl} alt={`portada de ${title}`} class="w-full h-full object-cover" />
         <div class="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"></div>
       </div>
 
@@ -55,16 +79,19 @@ const publishedAtFallback = publishedAt || new Date().toISOString();
         <div class="container">
           <div class="max-w-3xl mx-auto">
             <header class="mb-10">
-              <span class="badge bg-primary/10 text-primary mb-4">{category}</span>
+              <span class="badge bg-primary/10 text-primary mb-4">{categoryName}</span>
+
               <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
                 {title}
               </h1>
-              <p class="text-lg text-muted-foreground leading-relaxed mb-6 text-pretty">
-                {excerpt}
-              </p>
+
+              {excerpt && (
+                <p class="text-lg text-muted-foreground leading-relaxed mb-6 text-pretty">
+                  {excerpt}
+                </p>
+              )}
+
               <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground font-sans pb-6 border-b border-border">
-                <span>Por <strong class="text-foreground">{author}</strong></span>
-                <span>|</span>
                 <time datetime={publishedAtFallback}>{formatDate(publishedAtFallback)}</time>
                 <span>|</span>
                 <span>{readingTime} min de lectura</span>
@@ -75,32 +102,42 @@ const publishedAtFallback = publishedAt || new Date().toISOString();
               <Fragment set:html={content} />
             </div>
 
-            <!-- Back link -->
             <div class="border-t border-border pt-6 mb-16">
               <a href="/blog/" class="btn btn-secondary">
-                &larr; Volver al blog
+                &larr; volver al blog
               </a>
             </div>
 
-            <!-- Related Posts -->
             {relatedPosts && relatedPosts.length > 0 && (
               <section aria-labelledby="related-posts-heading">
                 <h2 id="related-posts-heading" class="font-serif text-2xl font-bold text-foreground mb-6">
-                  Más artículos
+                  más artículos
                 </h2>
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {relatedPosts.map(({ attributes: p }) => (
-                    <BlogCard
-                      title={p.title}
-                      slug={p.slug}
-                      excerpt={p.excerpt}
-                      image={p.image || '/images/placeholder.jpg'}
-                      author={p.author}
-                      publishedAt={p.publishedAt || new Date().toISOString()}
-                      category={p.category}
-                      content={p.content}
-                    />
-                  ))}
+                  {relatedPosts.map((item: any) => {
+                    const p = item.attributes ?? {};
+                    const pTitle = p.title ?? "";
+                    const pSlug = p.slug ?? "";
+                    const pExcerpt = p.excerpt ?? "";
+                    const pContent = p.content ?? "";
+                    const pDate = p.publishedAt ?? p.publishedDate ?? new Date().toISOString();
+                    const pCategory = p.categories?.data?.[0]?.attributes?.name ?? "blog";
+                    const pImage = getStrapiMediaUrl(p.cover) ?? "/images/placeholder.jpg";
+
+                    return (
+                      <BlogCard
+                        title={pTitle}
+                        slug={pSlug}
+                        excerpt={pExcerpt}
+                        image={pImage}
+                        author={p.author ?? ""}   
+                        publishedAt={pDate}
+                        category={pCategory}
+                        content={pContent}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -113,13 +150,13 @@ const publishedAtFallback = publishedAt || new Date().toISOString();
 
 <style>
   .prose-content {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: "Inter", system-ui, sans-serif;
     font-size: 1.0625rem;
     line-height: 1.75;
     color: var(--color-foreground);
   }
   .prose-content :global(h2) {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: "Playfair Display", Georgia, serif;
     font-size: 1.5rem;
     font-weight: 700;
     margin-top: 2.5rem;
@@ -127,7 +164,7 @@ const publishedAtFallback = publishedAt || new Date().toISOString();
     color: var(--color-foreground);
   }
   .prose-content :global(h3) {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: "Playfair Display", Georgia, serif;
     font-size: 1.25rem;
     font-weight: 600;
     margin-top: 2rem;

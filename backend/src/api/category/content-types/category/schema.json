@@ -31,16 +31,16 @@
         "audios"
       ]
     },
-    "seo": {
-      "type": "component",
-      "component": "seo.seo-category",
-      "repeatable": false
-    },
     "category": {
       "type": "relation",
       "relation": "manyToOne",
       "target": "api::review.review",
       "inversedBy": "categories"
+    },
+    "seoCategory": {
+      "type": "component",
+      "component": "seo.default-seo",
+      "repeatable": true
     }
   }
 }
