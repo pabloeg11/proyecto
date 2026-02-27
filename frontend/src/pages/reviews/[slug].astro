@@ -2,105 +2,65 @@
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
-import ReviewCard from "../../components/ReviewCard.astro";
-import { getReviewBySlug, getRelatedReviews, formatDate, calculateReadingTime } from "../../lib/api";
-
-const { slug } = Astro.params;
-
-let entry: any = null;
-let relatedReviews: any[] = [];
-let error = "";
+import { getReviewBySlug, formatDate, calculateReadingTime } from "../../lib/api";
 
 const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337";
 
-function getStrapiMediaUrl(media: any): string | null {
+function getStrapiMediaUrl(media: any) {
   const url = media?.data?.attributes?.url;
   if (!url) return null;
   return url.startsWith("http") ? url : `${STRAPI_URL}${url}`;
 }
+const { slug } = Astro.params;
+
+let entry = null;
+let error = "";
 
 try {
-  entry = await getReviewBySlug(slug as string);
-
-  if (!entry) {
-    return Astro.redirect("/404");
-  }
-
-  const reviewAttrs = entry.attributes ?? {};
-  const categorySlug =
-    reviewAttrs.categories?.data?.[0]?.attributes?.slug ?? "";
-
-  if (categorySlug) {
-    relatedReviews = await getRelatedReviews(
-      reviewAttrs.slug,
-      categorySlug,
-      3
-    );
-  } else {
-    relatedReviews = [];
-  }
+  entry = await getReviewBySlug(slug as string)
+  if (!entry) return Astro.redirect("/404");
 } catch (e) {
   error = "no se pudo cargar la reseña.";
 }
 
-const review = entry?.attributes ?? null;
+const r = entry?.attributes ?? {};
 
-const title = review?.title ?? "reseña";
-const excerpt = review?.excerpt ?? "";
-const content = review?.content ?? "";
-const rating = review?.rating ?? 0;
-const seo = review?.seo ?? null;
+const title = r.title ?? "reseña";
+const excerpt = r.excerpt ?? "";
+const rating = Number(r.rating ?? 0);
+const publishedAt = r.publishedAt ?? r.publishedDate ?? new Date().toISOString();
 
-// categoría principal (si tienes varias, pilla la primera)
-const categoryName =
-  review?.categories?.data?.[0]?.attributes?.name ?? "";
-const categorySlug =
-  review?.categories?.data?.[0]?.attributes?.slug ?? "";
+const coverUrl = getStrapiMediaUrl(r.cover) ?? "/images/placeholder.jpg";
 
-// imagen cover
-const imageUrl =
-  getStrapiMediaUrl(review?.cover) ?? "/images/placeholder.jpg";
+const categories = (r.categories?.data ?? [])
+  .map((c: any) => c?.attributes?.name)
+  .filter(Boolean);const categoryLabel = categories[0] ?? "";
 
-// fecha
-const publishedAtFallback =
-  review?.publishedAt ?? review?.publishedDate ?? new Date().toISOString();
+const seo = r.seo ?? null;
 
-// reading time
-const readingTime = content ? calculateReadingTime(content) : 0;
+// content: si viene string html, ok. si viene objeto (strapi blocks), fallback
+const rawContent = r.content;
+const contentHtml =
+  typeof rawContent === "string"
+    ? rawContent
+    : "<p>contenido no disponible en html (revisa el tipo de campo en strapi).</p>";
 
-// colores por tipo (si quieres mantenerlo)
-const categoryColors: Record<string, string> = {
-  peliculas: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  series: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  videojuegos: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-};
-
-const ratingColor =
-  rating >= 9
-    ? "text-green-500"
-    : rating >= 7
-    ? "text-primary"
-    : rating >= 5
-    ? "text-yellow-500"
-    : "text-red-500";
+const readingTime = calculateReadingTime(contentHtml);
 ---
 
-<Layout
-  title={seo?.metaTitle || title || "reseña"}
-  description={seo?.metaDescription || excerpt}
->
+<Layout title={seo?.metaTitle || title} description={seo?.metaDescription || excerpt}>
   {error ? (
     <section class="section">
       <div class="container text-center">
         <p class="text-destructive text-lg">{error}</p>
       </div>
     </section>
-  ) : review ? (
+  ) : (
     <>
       <div class="relative h-64 md:h-96 overflow-hidden">
         <img
-          src={imageUrl}
-          alt={`imagen de portada de ${title}`}
+          src={coverUrl}
+          alt={`portada de ${title}`}
           class="w-full h-full object-cover"
         />
         <div class="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"></div>
@@ -110,13 +70,11 @@ const ratingColor =
         <div class="container">
           <div class="max-w-4xl mx-auto">
             <header class="mb-10">
-              <div class="flex flex-wrap items-center gap-3 mb-4">
-                {categoryName && (
-                  <span class={`badge ${categoryColors[categorySlug] || ""}`}>
-                    {categoryName}
-                  </span>
-                )}
-              </div>
+              {categoryLabel && (
+                <div class="mb-4">
+                  <span class="badge bg-primary/10 text-primary">{categoryLabel}</span>
+                </div>
+              )}
 
               <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
                 {title}
@@ -129,76 +87,27 @@ const ratingColor =
               )}
 
               <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground font-sans pb-6 border-b border-border">
-                <time datetime={publishedAtFallback}>{formatDate(publishedAtFallback)}</time>
+                <time datetime={publishedAt}>{formatDate(publishedAt)}</time>
                 <span>|</span>
                 <span>{readingTime} min de lectura</span>
                 <span>|</span>
-                <span class={`text-2xl font-bold ${ratingColor}`}>{Number(rating).toFixed(1)}</span>
+                <span class="text-2xl font-bold text-primary">{rating.toFixed(1)}</span>
                 <span class="text-xs text-muted-foreground">/ 10</span>
               </div>
             </header>
 
-            <div class="bg-card border border-border rounded-xl p-6 mb-10">
-              <div class="flex items-center justify-between mb-3">
-                <h2 class="font-sans font-semibold text-sm uppercase tracking-wider text-foreground">puntuación</h2>
-                <span class={`text-4xl font-bold font-sans ${ratingColor}`}>{Number(rating).toFixed(1)}</span>
-              </div>
-              <div class="w-full bg-muted rounded-full h-3 overflow-hidden">
-                <div
-                  class="h-full rounded-full bg-primary transition-all duration-500"
-                  style={`width: ${(Number(rating) / 10) * 100}%`}
-                ></div>
-              </div>
-              <div class="flex justify-between mt-2 text-xs text-muted-foreground font-sans">
-                <span>0</span>
-                <span>5</span>
-                <span>10</span>
-              </div>
-            </div>
-
             <div class="prose-content mb-16">
-              <Fragment set:html={content} />
+              <Fragment set:html={contentHtml} />
             </div>
 
-            {relatedReviews && relatedReviews.length > 0 && (
-              <section aria-labelledby="related-heading">
-                <h2 id="related-heading" class="font-serif text-2xl font-bold text-foreground mb-6">
-                  reseñas relacionadas
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {relatedReviews.map((item: any) => {
-                    const rel = item.attributes ?? {};
-                    const relTitle = rel.title ?? "";
-                    const relSlug = rel.slug ?? "";
-                    const relExcerpt = rel.excerpt ?? "";
-                    const relRating = rel.rating ?? 0;
-                    const relDate = rel.publishedAt ?? rel.publishedDate ?? new Date().toISOString();
-                    const relImage = getStrapiMediaUrl(rel.cover) ?? "/images/placeholder.jpg";
-                    const relCategoryName = rel.categories?.data?.[0]?.attributes?.name ?? categoryName ?? "";
-
-                    return (
-                      <ReviewCard
-                        title={relTitle}
-                        slug={relSlug}
-                        excerpt={relExcerpt}
-                        rating={relRating}
-                        category={relCategoryName}
-                        image={relImage}
-                        author={rel.author ?? ""}
-                        publishedAt={relDate}
-                        genre={rel.genre ?? ""}
-                      />
-                    );
-                  })}
-                </div>
-              </section>
-            )}
+            <div class="border-t border-border pt-6">
+              <a href="/reviews/" class="btn btn-secondary">&larr; volver a reseñas</a>
+            </div>
           </div>
         </div>
       </article>
     </>
-  ) : null}
+  )}
 </Layout>
 
 <style>
@@ -216,40 +125,8 @@ const ratingColor =
     margin-bottom: 1rem;
     color: var(--color-foreground);
   }
-  .prose-content :global(h3) {
-    font-family: "Playfair Display", Georgia, serif;
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-top: 2rem;
-    margin-bottom: 0.75rem;
-    color: var(--color-foreground);
-  }
   .prose-content :global(p) {
     margin-bottom: 1.25rem;
-    color: var(--color-muted-foreground);
-  }
-  .prose-content :global(strong) {
-    color: var(--color-foreground);
-    font-weight: 600;
-  }
-  .prose-content :global(a) {
-    color: var(--color-primary);
-    text-decoration: underline;
-  }
-  .prose-content :global(ul),
-  .prose-content :global(ol) {
-    margin-bottom: 1.25rem;
-    padding-left: 1.5rem;
-    color: var(--color-muted-foreground);
-  }
-  .prose-content :global(li) {
-    margin-bottom: 0.5rem;
-  }
-  .prose-content :global(blockquote) {
-    border-left: 3px solid var(--color-primary);
-    padding-left: 1rem;
-    margin: 1.5rem 0;
-    font-style: italic;
     color: var(--color-muted-foreground);
   }
 </style>

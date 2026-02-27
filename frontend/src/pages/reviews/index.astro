@@ -16,7 +16,7 @@ let error = '';
 try {
   [reviews, categories] = await Promise.all([
     getReviews({
-      category: categoryParam || undefined,
+      categorySlug: categoryParam || undefined,
       search: searchParam || undefined,
       sortBy: sortParam,
       page: pageParam,
@@ -143,11 +143,9 @@ const { page, pageCount, total } = reviews?.meta?.pagination || { page: 1, pageC
                 excerpt={attributes.excerpt}
                 rating={attributes.rating}
                 category={attributes.category}
-                categoryLabel={attributes.categoryLabel}
-                image={attributes.image}
-                author={attributes.author}
-                publishedAt={attributes.publishedAt}
-                genre={attributes.genre}
+                image={attributes.image || '/images/placeholder.jpg'}
+                author={attributes.author || 'Anónimo'}
+                publishedAt={attributes.publishedAt || new Date().toISOString()}
               />
             ))}
           </div>

@@ -24,7 +24,7 @@ try {
 
   const results = await Promise.all(
     categories.map(({ attributes }) =>
-      getReviews({ category: attributes.slug, page: 1, pageSize: 3, sortBy: 'rating' })
+      getReviews({ categorySlug: attributes.slug, page: 1, pageSize: 3, sortBy: 'rating' })
     )
   );
 
@@ -103,7 +103,7 @@ try {
                 </div>
                 <p class="text-sm text-white/70 line-clamp-2">{attributes.description}</p>
                 <span class="inline-block mt-2 text-xs font-sans font-medium text-primary">
-                  {attributes.count} {attributes.count === 1 ? 'resena' : 'resenas'} &darr;
+                  {reviewsByCategory[attributes.slug]?.length || 0} {(reviewsByCategory[attributes.slug]?.length || 0) === 1 ? 'resena' : 'resenas'} &darr;
                 </span>
               </div>
             </a>
@@ -131,7 +131,7 @@ try {
                     <p class="text-muted-foreground font-sans max-w-lg">{attributes.description}</p>
                   </div>
                   <a
-                    href={`/reviews/?category=${attributes.slug}`}
+                    href={`/reviews/?categorySlug=${attributes.slug}`}
                     class="btn btn-primary text-sm shrink-0"
                   >
                     Ver todas &rarr;

@@ -64,7 +64,7 @@
     },
     "seo": {
       "type": "component",
-      "component": "seo.seo",
+      "component": "seo.seo-meta",
       "repeatable": false
     }
   }

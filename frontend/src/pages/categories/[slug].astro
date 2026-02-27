@@ -5,67 +5,57 @@ import Layout from "../../layouts/Layout.astro";
 import ReviewCard from "../../components/ReviewCard.astro";
 import { getReviews } from "../../lib/api";
 
-const { slug } = Astro.params;
-
-let reviewsRes: any = null;
-let error = "";
-let category: any = null;
-
 const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337";
 
-function getStrapiMediaUrl(media: any): string | null {
+function getStrapiMediaUrl(media: any) {
   const url = media?.data?.attributes?.url;
   if (!url) return null;
   return url.startsWith("http") ? url : `${STRAPI_URL}${url}`;
 }
 
+const { slug } = Astro.params;
+
+let reviewsRes: any = null;
+let category: any = null;
+let error = "";
+
 try {
-  // 1) obtener la categoría por slug (strapi)
-  const res = await fetch(
-    `${STRAPI_URL}/api/categories?filters[slug][$eq]=${encodeURIComponent(
-      slug as string
-    )}&populate=image,seo`
+  // 1) cargar la categoría por slug
+  const catRes = await fetch(
+    `${STRAPI_URL}/api/categories?filters[slug][$eq]=${encodeURIComponent(slug as string)}&populate=*`
   );
-  if (!res.ok) throw new Error("error categorias");
-  const json = await res.json();
+  const catJson = await catRes.json();
+  category = catJson?.data?.[0]?.attributes;
 
-  const entry = json.data?.[0] ?? null;
-  category = entry?.attributes ?? null;
+  if (!category) return Astro.redirect("/404");
 
-  if (!category) {
-    return Astro.redirect("/404");
-  }
-
-  // 2) obtener reviews filtradas por esa categoría (relación many-to-many: categories)
+  // 2) cargar reviews filtradas por esa categoría
   reviewsRes = await getReviews({
-    categorySlug: slug as string,
-    sortBy: "rating",
-    page: 1,
-    pageSize: 50,
-  });
+  category: String(slug),
+  sortBy: "date",
+  page: 1,
+  pageSize: 50,
+} as any);
 } catch (e) {
   error = "no se pudieron cargar las reseñas de esta categoría.";
 }
+reviewsRes = await getReviews({
+  categorySlug: String(slug),
+  sortBy: "date",
+  page: 1,
+  pageSize: 50,
+});
 
 const reviewList = reviewsRes?.data ?? [];
-const total = reviewsRes?.meta?.pagination?.total ?? reviewList.length;
-
-// hero image
-const categoryImage =
-  getStrapiMediaUrl(category?.image) ?? "/images/placeholder.jpg";
+const title = category?.seo?.metaTitle || `${category?.name ?? "categoría"} | zona reseñas`;
+const description = category?.seo?.metaDescription || category?.description || "";
+const heroImg = getStrapiMediaUrl(category?.image) || "/images/placeholder.jpg";
 ---
 
-<Layout
-  title={`${category?.name ?? "categoría"} - reseñas`}
-  description={category?.description ?? ""}
->
+<Layout title={title} description={description}>
   <section class="relative overflow-hidden">
     <div class="aspect-[4/1] max-h-72">
-      <img
-        src={categoryImage}
-        alt={`categoría: ${category?.name ?? ""}`}
-        class="w-full h-full object-cover"
-      />
+      <img src={heroImg} alt={`categoría: ${category?.name ?? ""}`} class="w-full h-full object-cover" />
     </div>
     <div class="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent"></div>
     <div class="absolute bottom-0 left-0 right-0">
@@ -73,85 +63,40 @@ const categoryImage =
         <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 text-balance">
           {category?.name}
         </h1>
-        {category?.description && (
-          <p class="text-muted-foreground font-sans max-w-xl">{category.description}</p>
-        )}
-        <p class="text-sm text-muted-foreground font-sans mt-2">
-          {total} {total === 1 ? "reseña" : "reseñas"}
-        </p>
+        <p class="text-muted-foreground font-sans max-w-xl">{category?.description}</p>
       </div>
     </div>
   </section>
 
   <section class="section">
     <div class="container">
-      <div class="flex items-center justify-between mb-8">
-        <a href="/categories/" class="text-sm text-muted-foreground hover:text-primary font-sans transition-colors">
-          &larr; volver a categorías
-        </a>
-
-        <div class="flex items-center gap-3">
-          <label for="sort-select" class="text-sm text-muted-foreground font-sans">ordenar:</label>
-          <select
-            id="sort-select"
-            class="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring font-sans"
-          >
-            <option value="rating">mejor valoradas</option>
-            <option value="date">más recientes</option>
-            <option value="title">alfabético</option>
-          </select>
-        </div>
-      </div>
-
-      {error && (
-        <div class="text-center py-20">
-          <p class="text-destructive text-lg">{error}</p>
-        </div>
-      )}
+      {error && <p class="text-destructive text-lg">{error}</p>}
 
       {!error && reviewList.length === 0 && (
-        <div class="text-center py-20">
-          <p class="text-muted-foreground text-lg font-sans">no hay reseñas en esta categoría todavía.</p>
-          <a href="/reviews/" class="btn btn-primary mt-4">ver todas las reseñas</a>
-        </div>
+        <p class="text-muted-foreground">no hay reseñas en esta categoría todavía.</p>
       )}
 
       {!error && reviewList.length > 0 && (
-        <div id="reviews-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reviewList.map((item: any) => {
-            const a = item.attributes ?? {};
-
-            const reviewTitle = a.title ?? "";
-            const reviewSlug = a.slug ?? "";
-            const reviewExcerpt = a.excerpt ?? "";
-            const reviewRating = a.rating ?? 0;
-            const reviewDate = a.publishedAt ?? a.publishedDate ?? new Date().toISOString();
-
-            const coverUrl =
-              getStrapiMediaUrl(a.cover) ?? "/images/placeholder.jpg";
-
-            const categoryLabel =
-              a.categories?.data?.[0]?.attributes?.name ?? category?.name ?? "categoría";
+            const r = item.attributes ?? {};
+            const coverUrl = getStrapiMediaUrl(r.cover) || "/images/placeholder.jpg";
+            const catName = (r.categories?.data ?? [])?.[0]?.attributes?.name ?? category?.name ?? "";
+            const catSlug = (r.categories?.data ?? [])?.[0]?.attributes?.slug ?? slug ?? "";
 
             return (
-              <div
-                class="review-item"
-                data-title={reviewTitle.toLowerCase()}
-                data-rating={String(reviewRating)}
-                data-date={reviewDate}
-              >
-                <ReviewCard
-                  title={reviewTitle}
-                  slug={reviewSlug}
-                  excerpt={reviewExcerpt}
-                  rating={reviewRating}
-                  category={categoryLabel}
-                  categoryLabel={categoryLabel}
-                  image={coverUrl}
-                  author={a.author ?? ""}
-                  publishedAt={reviewDate}
-                  genre={a.genre ?? ""}                 />
-              </div>
+              <ReviewCard
+                title={r.title}
+                slug={r.slug}
+                excerpt={r.excerpt}
+                rating={r.rating}
+                category={catSlug}
+                categoryLabel={catName}
+                image={coverUrl}
+                author={r.author || "zona reseñas"}
+                publishedAt={r.publishedAt || r.publishedDate || new Date().toISOString()}
+                genre={r.genre}
+              />
             );
           })}
         </div>
@@ -159,30 +104,3 @@ const categoryImage =
     </div>
   </section>
 </Layout>
-
-<script is:inline>
-  const select = document.getElementById('sort-select');
-  const grid = document.getElementById('reviews-grid');
-
-  if (select && grid) {
-    select.addEventListener('change', function() {
-      const items = Array.from(grid.querySelectorAll('.review-item'));
-
-      items.sort(function(a, b) {
-        var sortVal = select.value;
-        if (sortVal === 'rating') {
-          return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
-        } else if (sortVal === 'date') {
-          return new Date(b.dataset.date).getTime() - new Date(a.dataset.date).getTime();
-        } else if (sortVal === 'title') {
-          return a.dataset.title.localeCompare(b.dataset.title, 'es');
-        }
-        return 0;
-      });
-
-      items.forEach(function(item) {
-        grid.appendChild(item);
-      });
-    });
-  }
-</script>

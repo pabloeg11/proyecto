@@ -1,50 +1,83 @@
 ---
+export const prerender = false;
+
 import Layout from '../layouts/Layout.astro';
 import ReviewCard from '../components/ReviewCard.astro';
 import BlogCard from '../components/BlogCard.astro';
 import CategoryCard from '../components/CategoryCard.astro';
 import { getFeaturedReviews, getReviews, getBlogPosts, getCategories } from '../lib/api';
 
-// Consumo de API con async/await y try/catch
-let featuredReviews, latestReviews, latestPosts, categories;
-let error = '';
+const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? 'http://127.0.0.1:1337';
+
+function mediaUrl(media: any) {
+  const url = media?.data?.attributes?.url;
+  if (!url) return null;
+  return url.startsWith('http') ? url : `${STRAPI_URL}${url}`;
+}
+
+function firstCategory(rel: any) {
+  const cat = rel?.data?.[0]?.attributes;
+  if (!cat) return { name: '', slug: '' };
+  return { name: cat.name ?? '', slug: cat.slug ?? '' };
+}
+
+// consumo de api con async/await y try/catch
+let featuredReviews: any[] = [];
+let latestReviews: any = null;
+let latestPosts: any = null;
+let categories: any[] = [];
+let latestReviewItems: any[] = [];
+let error = "";
 
 try {
-  [featuredReviews, latestReviews, latestPosts, categories] = await Promise.all([
-    getFeaturedReviews(),
-    getReviews({ page: 1, pageSize: 3, sortBy: 'date' }),
-    getBlogPosts({ page: 1, pageSize: 3 }),
-    getCategories(),
-  ]);
+  featuredReviews = await getFeaturedReviews();
 } catch (e) {
-  error = 'No se pudieron cargar los datos. Por favor, inténtalo de nuevo más tarde.';
+  console.error("home: getFeaturedReviews failed", e);
+}
+
+try {
+  latestReviews = await getReviews({ page: 1, pageSize: 3, sortBy: "date" });
+  latestReviewItems = latestReviews?.data ?? [];
+} catch (e) {
+  console.error("home: getReviews failed", e);
+  error = "no se pudieron cargar los datos. por favor, inténtalo de nuevo más tarde.";
+}
+
+try {
+  latestPosts = await getBlogPosts({ page: 1, pageSize: 3 });
+} catch (e) {
+  console.error("home: getBlogPosts failed", e);
+}
+
+try {
+  categories = await getCategories();
+} catch (e) {
+  console.error("home: getCategories failed", e);
 }
 ---
 
-<Layout title="Inicio" description="ZonaReseñas - Tu fuente de confianza para reseñas de películas, series y videojuegos.">
-
-  <!-- Hero Section -->
+<Layout
+  title="Inicio"
+  description="ZonaReseñas - Tu fuente de confianza para reseñas de películas, series y videojuegos."
+>
+  <!-- hero section -->
   <section class="relative overflow-hidden bg-card border-b border-border">
     <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
     <div class="container relative py-20 md:py-28">
       <div class="max-w-3xl">
         <span class="inline-block badge bg-primary/10 text-primary mb-4 font-sans">
-          Tu guía de entretenimiento
+          tu guía de entretenimiento
         </span>
         <h1 class="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 text-balance">
           Reseñas honestas de cine, series y videojuegos
         </h1>
         <p class="text-lg text-muted-foreground leading-relaxed mb-8 max-w-2xl text-pretty">
           Descubre las mejores películas, series y videojuegos con análisis profundos,
-          valoraciones de la comunidad y un sistema de rangos que premia tu participación.
+          Valoraciones de la comunidad y un sistema de rangos que premia tu participación.
         </p>
         <div class="flex flex-wrap gap-3">
-          <a href="/reviews/" class="btn btn-primary">
-            Explorar reseñas
-          </a>
-          <a href="/blog/" class="btn btn-secondary">
-            Leer el blog
-          </a>
+          <a href="/reviews/" class="btn btn-primary">Explorar reseñas</a>
+          <a href="/blog/" class="btn btn-secondary">Leer el blog</a>
         </div>
       </div>
     </div>
@@ -58,43 +91,53 @@ try {
     </section>
   ) : (
     <>
-      <!-- Featured Reviews - Spotlight Showcase -->
+      <!-- featured reviews -->
       {featuredReviews && featuredReviews.length > 0 && (
         <section class="section" aria-labelledby="featured-heading">
           <div class="container">
             <div class="flex items-end justify-between mb-10">
               <div>
                 <span class="inline-block badge bg-accent/10 text-accent mb-2 font-sans uppercase tracking-wider text-xs">
-                  Seleccion del editor
+                  Selección del editor
                 </span>
                 <h2 id="featured-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground">
                   Destacadas
                 </h2>
               </div>
               <a href="/reviews/" class="hidden md:inline-flex text-sm font-medium text-primary hover:underline font-sans">
-                Ver todas &rarr;
+                Ver Todas &rarr;
               </a>
             </div>
 
-            <!-- Main Featured - Hero Card -->
-            {featuredReviews.length > 0 && (() => {
-              const hero = featuredReviews[0].attributes;
-              const heroRatingColor = hero.rating >= 9 ? 'bg-green-500 text-white' : hero.rating >= 7 ? 'bg-primary text-primary-foreground' : 'bg-yellow-500 text-white';
+            {/* hero (destacada principal) */}
+            {(() => {
+              const hero = featuredReviews[0]?.attributes ?? {};
+              const heroCover = mediaUrl(hero.cover) || '/images/placeholder.jpg';
+              const heroCat = firstCategory(hero.categories);
+              const heroRating = Number(hero.rating ?? 0);
+
+              const heroRatingColor =
+                heroRating >= 9 ? 'bg-green-500 text-white'
+                : heroRating >= 7 ? 'bg-primary text-primary-foreground'
+                : 'bg-yellow-500 text-white';
+
               return (
-                <a href={`/reviews/${hero.slug}/`} class="group block mb-6 relative overflow-hidden rounded-xl" aria-label={`Leer reseña destacada de ${hero.title}`}>
+                <a href={`/reviews/${hero.slug}/`} class="group block mb-6 relative overflow-hidden rounded-xl">
                   <div class="aspect-[21/9] md:aspect-[3/1]">
                     <img
-                      src={hero.image}
+                      src={heroCover}
                       alt={`Portada de ${hero.title}`}
                       class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="eager"
+                      decoding="async"
                     />
                   </div>
                   <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                   <div class="absolute bottom-0 left-0 right-0 p-6 md:p-10">
                     <div class="flex flex-wrap items-center gap-3 mb-3">
-                      <span class="badge bg-white/20 text-white backdrop-blur-sm">{hero.categoryLabel}</span>
-                      <span class="badge bg-white/20 text-white backdrop-blur-sm">{hero.genre}</span>
-                      <span class={`badge ${heroRatingColor} font-bold`}>{hero.rating.toFixed(1)}</span>
+                      {heroCat?.name && <span class="badge bg-white/20 text-white backdrop-blur-sm">{heroCat.name}</span>}
+                      {hero.genre && <span class="badge bg-white/20 text-white backdrop-blur-sm">{hero.genre}</span>}
+                      <span class={`badge ${heroRatingColor} font-bold`}>{heroRating.toFixed(1)}</span>
                     </div>
                     <h3 class="font-serif text-2xl md:text-4xl font-bold text-white mb-2 group-hover:text-primary transition-colors text-balance">
                       {hero.title}
@@ -103,7 +146,7 @@ try {
                       {hero.excerpt}
                     </p>
                     <div class="flex items-center gap-3">
-                      <span class="text-xs text-white/60 font-sans">Por {hero.author}</span>
+                      <span class="text-xs text-white/60 font-sans">por {hero.author ?? 'zona reseñas'}</span>
                       <span class="text-white/40">|</span>
                       <span class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity font-sans">
                         Leer reseña completa &rarr;
@@ -114,15 +157,24 @@ try {
               );
             })()}
 
-            <!-- Secondary Featured Cards -->
+            {/* secundarias */}
             {featuredReviews.length > 1 && (
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {featuredReviews.slice(1, 4).map(({ attributes: feat }) => {
-                  const featRatingColor = feat.rating >= 9 ? 'bg-green-500 text-white' : feat.rating >= 7 ? 'bg-primary text-primary-foreground' : 'bg-yellow-500 text-white';
+                {featuredReviews.slice(1, 4).map((it: any) => {
+                  const feat = it?.attributes ?? {};
+                  const featCover = mediaUrl(feat.cover) || '/images/placeholder.jpg';
+                  const featCat = firstCategory(feat.categories);
+                  const featRating = Number(feat.rating ?? 0);
+
+                  const featRatingColor =
+                    featRating >= 9 ? 'bg-green-500 text-white'
+                    : featRating >= 7 ? 'bg-primary text-primary-foreground'
+                    : 'bg-yellow-500 text-white';
+
                   return (
-                    <a href={`/reviews/${feat.slug}/`} class="group relative block overflow-hidden rounded-lg aspect-[4/3]" aria-label={`Leer reseña de ${feat.title}`}>
+                    <a href={`/reviews/${feat.slug}/`} class="group relative block overflow-hidden rounded-lg aspect-[4/3]">
                       <img
-                        src={feat.image}
+                        src={featCover}
                         alt={`Portada de ${feat.title}`}
                         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         loading="lazy"
@@ -130,10 +182,12 @@ try {
                       />
                       <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
                       <div class="absolute top-3 right-3">
-                        <span class={`badge ${featRatingColor} font-bold text-xs`}>{feat.rating.toFixed(1)}</span>
+                        <span class={`badge ${featRatingColor} font-bold text-xs`}>{featRating.toFixed(1)}</span>
                       </div>
                       <div class="absolute bottom-0 left-0 right-0 p-4">
-                        <span class="badge bg-white/20 text-white backdrop-blur-sm text-xs mb-2">{feat.categoryLabel}</span>
+                        {featCat?.name && (
+                          <span class="badge bg-white/20 text-white backdrop-blur-sm text-xs mb-2">{featCat.name}</span>
+                        )}
                         <h3 class="font-serif text-lg font-bold text-white group-hover:text-primary transition-colors text-balance leading-tight">
                           {feat.title}
                         </h3>
@@ -148,7 +202,7 @@ try {
         </section>
       )}
 
-      <!-- Categories -->
+      <!-- categories -->
       {categories && categories.length > 0 && (
         <section class="section bg-card border-y border-border" aria-labelledby="categories-heading">
           <div class="container">
@@ -160,23 +214,27 @@ try {
                 Encuentra reseñas del tipo de contenido que más te gusta
               </p>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {categories.map(({ attributes }) => (
-                <CategoryCard
-                  name={attributes.name}
-                  slug={attributes.slug}
-                  description={attributes.description}
-                  image={attributes.image}
-                  count={attributes.count}
-                />
-              ))}
+              {categories.map((c: any) => {
+                const a = c?.attributes ?? {};
+                return (
+                  <CategoryCard
+                    name={a.name}
+                    slug={a.slug}
+                    description={a.description || 'sin descripción'}
+                    image={mediaUrl(a.image) || '/images/placeholder.jpg'}
+                    count={a.count || 0}
+                  />
+                );
+              })}
             </div>
           </div>
         </section>
       )}
 
-      <!-- Latest Reviews -->
-      {latestReviews && latestReviews.data.length > 0 && (
+      <!-- latest reviews -->
+      {latestReviewItems && latestReviewItems.length > 0 && (
         <section class="section" aria-labelledby="latest-reviews-heading">
           <div class="container">
             <div class="flex items-end justify-between mb-8">
@@ -190,28 +248,35 @@ try {
                 Ver todas &rarr;
               </a>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {latestReviews.data.map(({ attributes }) => (
-                <ReviewCard
-                  title={attributes.title}
-                  slug={attributes.slug}
-                  excerpt={attributes.excerpt}
-                  rating={attributes.rating}
-                  category={attributes.category}
-                  categoryLabel={attributes.categoryLabel}
-                  image={attributes.image}
-                  author={attributes.author}
-                  publishedAt={attributes.publishedAt}
-                  genre={attributes.genre}
-                />
-              ))}
+              {latestReviewItems.map((item: any) => {
+                const a = item?.attributes ?? {};
+                const cover = mediaUrl(a.cover) || '/images/placeholder.jpg';
+                const cat = firstCategory(a.categories);
+
+                return (
+                  <ReviewCard
+                    title={a.title}
+                    slug={a.slug}
+                    excerpt={a.excerpt}
+                    rating={Number(a.rating ?? 0)}
+                    category={cat.slug}
+                    categoryLabel={cat.name}
+                    image={cover}
+                    author={a.author || 'zona reseñas'}
+                    publishedAt={a.publishedAt || a.publishedDate || new Date().toISOString()}
+                    genre={a.genre}
+                  />
+                );
+              })}
             </div>
           </div>
         </section>
       )}
 
-      <!-- Blog -->
-      {latestPosts && latestPosts.data.length > 0 && (
+      <!-- blog -->
+      {latestPosts && latestPosts.data && latestPosts.data.length > 0 && (
         <section class="section bg-card border-y border-border" aria-labelledby="blog-heading">
           <div class="container">
             <div class="flex items-end justify-between mb-8">
@@ -219,31 +284,35 @@ try {
                 <h2 id="blog-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground">
                   Desde el blog
                 </h2>
-                <p class="text-muted-foreground mt-1 font-sans">Artículos, listas y opiniones de nuestro equipo</p>
+                <p class="text-muted-foreground mt-1 font-sans">Artículos, Listas y Opiniones del equipo</p>
               </div>
               <a href="/blog/" class="hidden md:inline-flex text-sm font-medium text-primary hover:underline font-sans">
                 Ir al blog &rarr;
               </a>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {latestPosts.data.map(({ attributes }) => (
-                <BlogCard
-                  title={attributes.title}
-                  slug={attributes.slug}
-                  excerpt={attributes.excerpt}
-                  image={attributes.image}
-                  author={attributes.author}
-                  publishedAt={attributes.publishedAt}
-                  category={attributes.category}
-                  content={attributes.content}
-                />
-              ))}
+              {latestPosts.data.map((post: any) => {
+                const a = post?.attributes ?? {};
+                return (
+                  <BlogCard
+                    title={a.title}
+                    slug={a.slug}
+                    excerpt={a.excerpt}
+                    image={mediaUrl(a.image) || '/images/placeholder.jpg'}
+                    author={a.author || 'anónimo'}
+                    publishedAt={a.publishedAt || new Date().toISOString()}
+                    category={a.category || 'general'}
+                    content={a.content}
+                  />
+                );
+              })}
             </div>
           </div>
         </section>
       )}
 
-      <!-- CTA / Role System Teaser -->
+      <!-- cta -->
       <section class="section" aria-labelledby="cta-heading">
         <div class="container">
           <div class="bg-gradient-to-br from-primary/10 via-card to-accent/10 border border-border rounded-2xl p-8 md:p-12 text-center">
@@ -251,22 +320,11 @@ try {
               Sube de rango participando
             </h2>
             <p class="text-muted-foreground max-w-2xl mx-auto mb-6 font-sans leading-relaxed">
-              En CritiX valoramos tu opinión. Comenta, valora contenido y sube de rango: desde
+              En zona reseñas valoramos tu opinión. comenta, valora contenido y sube de rango: desde
               <strong class="text-foreground"> Novato</strong> hasta
-              <strong class="text-foreground"> Leyenda</strong>.
-              Cada interacción cuenta.
+              <strong class="text-foreground"> Leyenda</strong>. cada interacción cuenta.
             </p>
-            <div class="flex flex-wrap justify-center gap-3 mb-6">
-              <span class="badge bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">Novato</span>
-              <span class="text-muted-foreground">&rarr;</span>
-              <span class="badge bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">Aficionado</span>
-              <span class="text-muted-foreground">&rarr;</span>
-              <span class="badge bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">Entusiasta</span>
-              <span class="text-muted-foreground">&rarr;</span>
-              <span class="badge bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">Experto</span>
-              <span class="text-muted-foreground">&rarr;</span>
-              <span class="badge bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">Leyenda</span>
-            </div>
+
             <a href="/reviews/" class="btn btn-primary">
               Empieza a participar
             </a>

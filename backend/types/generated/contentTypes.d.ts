@@ -682,7 +682,7 @@ export interface ApiReviewReview extends Struct.CollectionTypeSchema {
     publishedAt: Schema.Attribute.DateTime;
     publishedDate: Schema.Attribute.Date;
     rating: Schema.Attribute.Integer;
-    seo: Schema.Attribute.Component<'seo.seo', false>;
+    seo: Schema.Attribute.Component<'seo.seo-meta', false>;
     slug: Schema.Attribute.String;
     title: Schema.Attribute.String;
     type: Schema.Attribute.Enumeration<['pelicula', 'serie', 'videojuego']>;

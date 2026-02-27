@@ -2,6 +2,7 @@
 // API Layer - Capa de abstracción para consumo de datos
 // Conecta directamente con Strapi CMS
 // =============================================================================
+const STRAPI_URL = import.meta.env.STRAPI_URL || "http://127.0.0.1:1337";
 
 export interface StrapiEntity<T> {
   id: number;
@@ -33,14 +34,13 @@ export interface ReviewAttributes {
   content: string;
   rating: number;
   featured: boolean;
-  type: "pelicula" | "serie" | "videojuego";
-  publishedAt?: string; // si usas draft/publish
-  publishedDate?: string; // si creaste tu propio campo
+  author: string;
+  category: string;
+  categoryLabel?: string;
+  genre?: string;
+  image: string;
+  publishedAt: string;
   seo?: { metaTitle?: string; metaDescription?: string };
-
-  // relaciones / media (si populate=*)
-  cover?: any;
-  categories?: { data: Array<StrapiEntity<CategoryAttributes>> };
 }
 
 export interface BlogAttributes {
@@ -48,28 +48,39 @@ export interface BlogAttributes {
   slug: string;
   excerpt: string;
   content: string;
-  publishedAt?: string;
-  publishedDate?: string;
+  author: string;
+  category: string;
+  image: string;
+  publishedAt: string;
   seo?: { metaTitle?: string; metaDescription?: string };
-
-  cover?: any;
-  categories?: { data: Array<StrapiEntity<CategoryAttributes>> };
 }
 
 export interface CategoryAttributes {
   name: string;
   slug: string;
-  description?: string;
-  seo?: any;
-  image?: any;
+  description: string;
+  image: string;
+  count: number;
 }
 
-const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337";
+export interface CommentData {
+  id: string;
+  author: string;
+  content: string;
+  createdAt: string;
+}
 
 // --- Helper para fetch a Strapi ---
 async function strapiFetch(path: string) {
-  const res = await fetch(`${STRAPI_URL}${path}`);
-  if (!res.ok) throw new Error(`Strapi error ${res.status} (${path})`);
+  const url = `${STRAPI_URL}${path}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("STRAPI FETCH ERROR", res.status, url, text);
+    throw new Error(`Strapi error ${res.status}`);
+  }
+
   return res.json();
 }
 
@@ -123,24 +134,25 @@ export async function getReviews({
   pageSize?: number;
 } = {}): Promise<StrapiResponse<ReviewAttributes>> {
   try {
-    const params = new URLSearchParams({
-      "pagination[page]": page.toString(),
-      "pagination[pageSize]": pageSize.toString(),
-      "populate": "*",
-    });
+    const params = new URLSearchParams();
 
-    // sort (elige el que realmente uses en Strapi)
-    // si tienes publishedDate propio, cambia a publishedDate:desc
+    params.append("pagination[page]", String(page));
+    params.append("pagination[pageSize]", String(pageSize));
+    params.append("populate", "*");
+
+    // sort
     if (sortBy === "rating") params.append("sort", "rating:desc");
     else if (sortBy === "title") params.append("sort", "title:asc");
     else params.append("sort", "publishedAt:desc");
 
-    // filtro por categoría (many-to-many: categories)
+    // filtro por categoría (relación many-to-many: categories)
     if (categorySlug) {
       params.append("filters[categories][slug][$eq]", categorySlug);
+      // si no te funciona, usa esta alternativa:
+      // params.append("filters[categories][attributes][slug][$eq]", categorySlug);
     }
 
-    // filtro básico en Strapi (luego refinamos con regex + normalización)
+    // filtro básico
     if (search) {
       params.append("filters[title][$containsi]", search);
     }
@@ -153,9 +165,9 @@ export async function getReviews({
       const safe = normalizedSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const searchRegex = new RegExp(safe.split(/\s+/).join(".*"), "i");
 
-      response.data = response.data.filter((item: StrapiEntity<ReviewAttributes>) => {
+      response.data = (response.data ?? []).filter((item: StrapiEntity<ReviewAttributes>) => {
         const { title, excerpt } = item.attributes;
-        const searchableText = normalizeText(`${title} ${excerpt ?? ""}`);
+        const searchableText = normalizeText(`${title ?? ""} ${excerpt ?? ""}`);
         return searchRegex.test(searchableText);
       });
     }
@@ -170,17 +182,17 @@ export async function getReviews({
 /**
  * review: por slug
  */
-export async function getReviewBySlug(
-  slug: string
-): Promise<StrapiEntity<ReviewAttributes> | null> {
+export async function getReviewBySlug(slug: string): Promise<any | null> {
   try {
-    const response = await strapiFetch(
-      `/api/reviews?filters[slug][$eq]=${encodeURIComponent(slug)}&populate=*`
-    );
-    return response.data?.[0] || null;
+    const params = new URLSearchParams();
+    params.append("filters[slug][$eq]", slug);
+    params.append("populate", "*");
+
+    const response = await strapiFetch(`/api/reviews?${params.toString()}`);
+    return response?.data?.[0] ?? null;
   } catch (error) {
-    console.error("Error al obtener reseña:", error);
-    throw new Error("No se pudo cargar la reseña.");
+    console.error("Error al obtener reseña por slug:", error);
+    return null;
   }
 }
 
@@ -311,4 +323,7 @@ export async function getContactPageData(): Promise<any> {
     console.error("Error al obtener datos de contacto:", error);
     return null;
   }
+}
+export async function debugGetReviews() {
+  return strapiFetch("/api/reviews?populate=*");
 }

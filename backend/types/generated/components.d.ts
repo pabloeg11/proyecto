@@ -30,12 +30,21 @@ export interface SeoSeoCategory extends Struct.ComponentSchema {
   attributes: {};
 }
 
+export interface SeoSeoMeta extends Struct.ComponentSchema {
+  collectionName: 'components_seo_seo_metas';
+  info: {
+    displayName: 'seo-meta';
+  };
+  attributes: {};
+}
+
 declare module '@strapi/strapi' {
   export module Public {
     export interface ComponentSchemas {
       'seo.default-seo': SeoDefaultSeo;
       'seo.seo': SeoSeo;
       'seo.seo-category': SeoSeoCategory;
+      'seo.seo-meta': SeoSeoMeta;
     }
   }
 }
