@@ -3,7 +3,7 @@ export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
 import BlogCard from "../../components/BlogCard.astro";
-import { getBlogPostBySlug, getBlogPosts, formatDate, calculateReadingTime } from "../../lib/api";
+import { getBlogPostBySlug, getBlogPosts, formatDate, calculateReadingTime, getStrapiMediaUrl } from "../../lib/api";
 
 const { slug } = Astro.params;
 
@@ -11,13 +11,6 @@ let entry: any = null;
 let relatedPosts: any[] = [];
 let error = "";
 
-// helper: sacar url de media de strapi (cover)
-function getStrapiMediaUrl(media: any): string | null {
-  const url = media?.data?.attributes?.url;
-  if (!url) return null;
-  // si strapi devuelve /uploads/..., lo convertimos a url completa
-  return url.startsWith("http") ? url : `${import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337"}${url}`;
-}
 
 try {
   entry = await getBlogPostBySlug(slug as string);

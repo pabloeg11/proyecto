@@ -1,7 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import ReviewCard from "../../components/ReviewCard.astro";
-import { getReviews, getCategories, getStrapiMediaUrl } from '../../lib/api';
+import { getReviews, getCategories, getStrapiMediaUrl, getFirstCategory } from '../../lib/api';
 import type { StrapiEntity, StrapiListResponse } from "../../lib/strapiTypes";
 import type { ReviewAttributes, CategoryAttributes } from "../../lib/api";
 
@@ -165,32 +165,33 @@ function getCategoryLabel(review: StrapiEntity<ReviewAttributes>): string {
          <!-- Reviews Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
   {reviews.data
-    .filter((review) => review?.slug)
-    .map((review) => {
+    .filter((r) => r?.attributes?.slug)
+    .map((r) => {
+      const a = r.attributes;
+
+      const cat = getFirstCategory(a.categories ?? a.category);
 
       const coverUrl =
-        getStrapiMediaUrl(review.cover)
-        ?? getStrapiMediaUrl(review.image)
-        ?? "/images/placeholder.jpg";
+        getStrapiMediaUrl(a.cover ?? a.image) ?? "/images/placeholder.jpg";
 
       return (
         <ReviewCard
-          title={review.title ?? "sin título"}
-          slug={review.slug}
-          excerpt={review.excerpt ?? ""}
-          rating={Number(review.rating ?? 0)}
-          category={review.category ?? ""}
-          categoryLabel={review.category ?? ""}
+          title={a.title ?? "sin título"}
+          slug={a.slug ?? ""}
+          excerpt={a.excerpt ?? ""}
+          rating={Number(a.rating ?? 0)}
+          category={cat.slug}
+          categoryLabel={cat.name}
           image={coverUrl}
-          author={review.author ?? "anónimo"}
-          publishedAt={review.publishedAt ?? new Date().toISOString()}
-          genre={review.genre ?? ""}
+          author={a.author ?? "anónimo"}
+          publishedAt={a.publishedAt ?? new Date().toISOString()}
+          genre={a.genre ?? ""}
         />
       );
-
     })}
 </div>
-          {pageCount > 1 && (
+
+{pageCount > 1 && (
             <nav class="flex items-center justify-center gap-2" aria-label="Paginación de reseñas">
               {page > 1 && (
                 <a

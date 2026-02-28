@@ -2,15 +2,8 @@
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
-import { getReviewBySlug, formatDate, calculateReadingTime } from "../../lib/api";
+import { getReviewBySlug, formatDate, calculateReadingTime, getStrapiMediaUrl, getFirstCategory } from "../../lib/api";
 
-const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? "http://localhost:1337";
-
-function getStrapiMediaUrl(media: any) {
-  const url = media?.data?.attributes?.url;
-  if (!url) return null;
-  return url.startsWith("http") ? url : `${STRAPI_URL}${url}`;
-}
 const { slug } = Astro.params;
 
 let entry = null;
@@ -32,9 +25,13 @@ const publishedAt = r.publishedAt ?? r.publishedDate ?? new Date().toISOString()
 
 const coverUrl = getStrapiMediaUrl(r.cover) ?? "/images/placeholder.jpg";
 
-const categories = (r.categories?.data ?? [])
-  .map((c: any) => c?.attributes?.name)
-  .filter(Boolean);const categoryLabel = categories[0] ?? "";
+const firstCat = getFirstCategory(r.categories ?? r.category);
+const categoryLabel = firstCat.name;
+
+// lista de nombres para mostrar (v4/v5)
+const categories = Array.isArray(r.categories)
+  ? r.categories.map((c: any) => c?.name ?? c?.attributes?.name).filter(Boolean)
+  : (r.categories?.data ?? []).map((c: any) => c?.attributes?.name).filter(Boolean);
 
 const seo = r.seo ?? null;
 

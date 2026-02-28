@@ -12,13 +12,9 @@ import {
   getBlogPosts,
   getCategories,
   getStrapiMediaUrl,
+  getFirstCategory,
 } from "../lib/api";
 
-function firstCategory(rel: any) {
-  const cat = rel?.data?.[0]?.attributes;
-  if (!cat) return { name: "general", slug: "general" };
-  return { name: cat.name ?? "general", slug: cat.slug ?? "general" };
-}
 
 let featuredReviews: any[] = [];
 let latestReviews: any = null;
@@ -110,7 +106,7 @@ try {
 
               // en reviews: la imagen es "image" (media)
               const heroCover = getStrapiMediaUrl(hero.image);
-              const heroCat = firstCategory(hero.categories);
+              const heroCat = getFirstCategory(hero.categories);
               const heroRating = Number(hero.rating ?? 0);
 
               const heroRatingColor =
@@ -166,7 +162,7 @@ try {
                 {featuredReviews.slice(1, 4).map((it: any) => {
                   const feat = it?.attributes ?? {};
                   const featCover = getStrapiMediaUrl(feat.image);
-                  const featCat = firstCategory(feat.categories);
+                  const featCat = getFirstCategory(feat.categories);
                   const featRating = Number(feat.rating ?? 0);
 
                   const featRatingColor =
@@ -262,7 +258,7 @@ try {
                 .filter((item: any) => item?.attributes?.slug)
                 .map((item: any) => {
                   const a = item?.attributes ?? {};
-                  const cat = firstCategory(a.categories);
+                  const cat = getFirstCategory(a.categories);
 
                   return (
                     <ReviewCard
