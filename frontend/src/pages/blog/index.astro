@@ -2,7 +2,6 @@
 import Layout from '../../layouts/Layout.astro';
 import BlogCard from '../../components/BlogCard.astro';
 import { getBlogPosts, getStrapiMediaUrl } from '../../lib/api';
-import { getStrapiMediaUrl } from "../../lib/api";
 
 const url = Astro.url;
 const searchParam = url.searchParams.get('search') || '';
@@ -18,7 +17,7 @@ try {
     search: searchParam || undefined,
   });
 } catch (e) {
-  error = 'No se pudieron cargar los artículos del blog.';
+  error = 'no se pudieron cargar los artículos del blog.';
 }
 
 const { page, pageCount, total } = posts?.meta?.pagination || { page: 1, pageCount: 1, total: 0 };
@@ -92,10 +91,12 @@ const { page, pageCount, total } = posts?.meta?.pagination || { page: 1, pageCou
               <a href={`/blog/${firstPost.slug}/`} class="group block mb-10 relative overflow-hidden rounded-xl" aria-label={`Leer artículo: ${firstPost.title}`}>
                 <div class="aspect-[21/9]">
                   <img
-                    src={firstPost.image || '/images/placeholder.jpg'}
-                    alt={`Portada del artículo ${firstPost.title}`}
+                    src={getStrapiMediaUrl(firstPost.cover ?? firstPost.image) ?? '/images/placeholder.jpg'}
+                    alt={`portada del artículo ${firstPost.title}`}
                     class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
+                    loading="lazy"
+                    decoding="async"
+                   />
                 </div>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                 <div class="absolute bottom-0 left-0 right-0 p-6 md:p-10">
@@ -116,20 +117,25 @@ const { page, pageCount, total } = posts?.meta?.pagination || { page: 1, pageCou
 
           <!-- Blog Grid -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            {posts?.data
-  ?.filter((post) => post?.attributes?.slug)
-  .map((post) => (
-    <BlogCard
-      title={post.attributes.title ?? "sin título"}
-      slug={post.attributes.slug}
-      excerpt={post.attributes.excerpt ?? ""}
-      image={getStrapiMediaUrl(post.attributes.cover)}
-      author={post.attributes.author ?? "Anónimo"}
-      publishedAt={post.attributes.publishedAt ?? new Date().toISOString()}
-      category="General"
-      content={post.attributes.content ?? ""}
-    />
-  ))}
+              {(posts?.data ?? [])
+                .filter((post) => typeof post?.attributes?.slug === "string" && post.attributes.slug.length > 0)
+                .map((post) => {
+                  const a = post.attributes;
+                  const slug = a.slug as string;
+
+                  return (
+                    <BlogCard
+                      title={a.title ?? "sin titulo"}
+                      slug={slug}
+                      excerpt={a.excerpt ?? ""}
+                      image={getStrapiMediaUrl(a.cover ?? a.image) ?? "/images/placeholder.jpg"}
+                      author={a.author ?? "anónimo"}
+                      publishedAt={a.publishedAt ?? new Date().toISOString()}
+                      category="general"
+                      content={a.content ?? ""}
+                    />
+                  );
+                })}
           </div>
 
           <!-- Pagination -->

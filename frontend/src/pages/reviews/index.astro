@@ -1,9 +1,9 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import ReviewCard from "../../components/ReviewCard.astro";
-import { getReviews, getCategories, getStrapiMediaUrl, getFirstCategory } from '../../lib/api';
-import type { StrapiEntity, StrapiListResponse } from "../../lib/strapiTypes";
-import type { ReviewAttributes, CategoryAttributes } from "../../lib/api";
+
+import { getReviews, getCategories, getStrapiMediaUrl, getFirstCategory } from "../../lib/api";
+import type { StrapiEntity, StrapiListResponse, ReviewAttributes, CategoryAttributes } from "../../lib/api";
 
 const url = Astro.url;
 
@@ -41,16 +41,6 @@ const { page, pageCount, total } = reviews?.meta?.pagination || {
   pageCount: 1,
   total: 0,
 };
-
-
-
-  // fallback si tuvieras category como string
-function getCategoryLabel(review: StrapiEntity<ReviewAttributes>): string {
-  const rel = review.attributes?.categories;
-  const firstName = rel?.data?.[0]?.attributes?.name;
-
-  return firstName ?? "general";
-}
 ---
 
 <Layout

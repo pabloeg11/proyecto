@@ -105,7 +105,7 @@ try {
               const hero = featuredReviews[0]?.attributes ?? {};
 
               // en reviews: la imagen es "image" (media)
-              const heroCover = getStrapiMediaUrl(hero.image);
+              const heroCover = getStrapiMediaUrl(hero.cover ?? hero.image);
               const heroCat = getFirstCategory(hero.categories);
               const heroRating = Number(hero.rating ?? 0);
 
@@ -161,7 +161,7 @@ try {
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {featuredReviews.slice(1, 4).map((it: any) => {
                   const feat = it?.attributes ?? {};
-                  const featCover = getStrapiMediaUrl(feat.image);
+                  const featCover = getStrapiMediaUrl(feat.cover ?? feat.image);
                   const featCat = getFirstCategory(feat.categories);
                   const featRating = Number(feat.rating ?? 0);
 
@@ -228,7 +228,7 @@ try {
                       name={a.name ?? "sin nombre"}
                       slug={a.slug}
                       description={a.description ?? "sin descripción"}
-                      image={getStrapiMediaUrl(a.image)}
+                      image={getStrapiMediaUrl(a.cover ?? a.image) ?? "/images/placeholder.jpg"}
                       count={Number(a.count ?? 0)}
                     />
                   );
@@ -253,26 +253,27 @@ try {
               </a>
             </div>
 
+
+            
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {latestReviewItems
                 .filter((item: any) => item?.attributes?.slug)
                 .map((item: any) => {
                   const a = item?.attributes ?? {};
-                  const cat = getFirstCategory(a.categories);
-
+                  const cat = getFirstCategory(a.categories ?? a.category);
                   return (
                     <ReviewCard
                       title={a.title ?? "sin título"}
                       slug={a.slug}
                       excerpt={a.excerpt ?? ""}
                       rating={Number(a.rating ?? 0)}
-                      category={cat.slug}
-                      categoryLabel={cat.name}
-                      image={getStrapiMediaUrl(a.image)}
+                      category={cat.slug || "general"}
+                      categoryLabel={cat.name || "general"}
+                      image={getStrapiMediaUrl(a.cover ?? a.image) ?? "/images/placeholder.jpg"}
                       author={a.author ?? "zona reseñas"}
                       publishedAt={a.publishedAt ?? new Date().toISOString()}
                       genre={a.genre ?? ""}
-                    />
+                  />
                   );
                 })}
             </div>
