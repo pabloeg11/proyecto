@@ -1,0 +1,111 @@
+---
+type Props = {
+  targetType: "review" | "post";
+  slug: string;
+  title?: string;
+};
+
+const { targetType, slug, title = "" } = Astro.props as Props;
+
+const STRAPI_URL =
+  import.meta.env.PUBLIC_STRAPI_URL ||
+  import.meta.env.STRAPI_URL ||
+  "http://localhost:1337";
+
+// ids seguros para el dom (por si el slug tiene /, espacios, etc.)
+const safeId = String(slug).replace(/[^a-zA-Z0-9_-]/g, "_");
+---
+
+<section class="mt-12 border-t border-border pt-8">
+  <h3 class="font-serif text-xl font-bold text-foreground mb-2">valora este contenido</h3>
+  <p class="text-muted-foreground text-sm mb-4">
+    tu voto suma puntos y sube tu rango (sin login, en este dispositivo).
+  </p>
+
+  <div class="flex flex-wrap gap-2 mb-4" id={`rating-buttons-${safeId}`}></div>
+
+  <div class="text-sm">
+    <span class="text-muted-foreground">tu rango:</span>
+    <span class="font-semibold text-primary" id={`rank-${safeId}`}>novato</span>
+
+    <span class="text-muted-foreground ml-4">puntos:</span>
+    <span class="font-semibold text-foreground" id={`points-${safeId}`}>0</span>
+  </div>
+
+  <p class="mt-3 text-sm text-muted-foreground" id={`msg-${safeId}`}></p>
+</section>
+
+<script is:inline define:vars={{ STRAPI_URL, targetType, slug, title, safeId }}>
+  const wrapId = `rating-buttons-${safeId}`;
+  const rankId = `rank-${safeId}`;
+  const pointsId = `points-${safeId}`;
+  const msgId = `msg-${safeId}`;
+
+  const wrap = document.getElementById(wrapId);
+  const rankEl = document.getElementById(rankId);
+  const pointsEl = document.getElementById(pointsId);
+  const msgEl = document.getElementById(msgId);
+
+  let selected = null;
+
+  function setMsg(t) { if (msgEl) msgEl.textContent = t; }
+
+  function btnClass(isSelected) {
+    return (
+      "px-3 py-1.5 rounded-lg border border-border text-sm font-medium transition " +
+      (isSelected ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted")
+    );
+  }
+
+  function renderButtons() {
+    if (!wrap) return;
+    wrap.innerHTML = "";
+
+    for (let i = 1; i <= 10; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = `★ ${i}`;
+      btn.className = btnClass(selected === i);
+
+      btn.addEventListener("click", () => vote(i));
+      wrap.appendChild(btn);
+    }
+  }
+
+  async function vote(value) {
+    setMsg("guardando tu voto...");
+
+    const res = await fetch(`${STRAPI_URL}/api/ratings/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetType, slug, value }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data?.success) {
+  if (data?.alreadyVoted) {
+    if (rankEl && data.rank) rankEl.textContent = data.rank;
+    if (pointsEl && data.totalPoints !== undefined) pointsEl.textContent = String(data.totalPoints);
+    setMsg("ya habías votado aquí. tu rango y puntos están actualizados.");
+    return;
+  }
+
+  setMsg(data?.error?.message || "no se pudo guardar el voto");
+  return;
+}
+
+    selected = value;
+    renderButtons();
+
+    if (rankEl && data.rank) rankEl.textContent = data.rank;
+    if (pointsEl && data.totalPoints !== undefined && data.totalPoints !== null) {
+      pointsEl.textContent = String(data.totalPoints);
+    }
+
+    const plus = data.pointsAdded ? ` +${data.pointsAdded} puntos` : "";
+    setMsg(`voto guardado.${plus}`);
+  }
+
+  renderButtons();
+</script>

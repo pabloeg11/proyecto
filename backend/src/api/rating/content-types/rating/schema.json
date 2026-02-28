@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ratings",
+  "info": {
+    "singularName": "rating",
+    "pluralName": "ratings",
+    "displayName": "rating"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "targetType": {
+      "type": "enumeration",
+      "enum": ["review", "post"]
+    },
+    "contentId": {
+      "type": "integer"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "value": {
+      "type": "integer",
+      "default": 0,
+      "min": 1,
+      "max": 10
+    },
+    "voterKey": {
+      "type": "string",
+      "unique": true
+    },
+    "anonId": {
+      "type": "string"
+    },
+    "userAgentHash": {
+      "type": "string"
+    }
+  }
+}

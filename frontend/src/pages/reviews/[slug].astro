@@ -2,17 +2,26 @@
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
-import { getReviewBySlug, formatDate, calculateReadingTime, getStrapiMediaUrl, getFirstCategory } from "../../lib/api";
+import RatingWidget from "../../components/RatingWidget.astro";
+
+import {
+  getReviewBySlug,
+  formatDate,
+  calculateReadingTime,
+  getStrapiMediaUrl,
+  getFirstCategory,
+} from "../../lib/api";
 
 const { slug } = Astro.params;
 
-let entry = null;
+let entry: any = null;
 let error = "";
 
 try {
-  entry = await getReviewBySlug(slug as string)
+  entry = await getReviewBySlug(slug as string);
   if (!entry) return Astro.redirect("/404");
 } catch (e) {
+  console.error("review slug page error:", e);
   error = "no se pudo cargar la reseña.";
 }
 
@@ -23,26 +32,35 @@ const excerpt = r.excerpt ?? "";
 const rating = Number(r.rating ?? 0);
 const publishedAt = r.publishedAt ?? r.publishedDate ?? new Date().toISOString();
 
-const coverUrl = getStrapiMediaUrl(r.cover) ?? "/images/placeholder.jpg";
+// cover puede venir como cover o image según tu modelo
+const coverUrl =
+  getStrapiMediaUrl(r.cover ?? r.image) ?? "/images/placeholder.jpg";
 
 const firstCat = getFirstCategory(r.categories ?? r.category);
-const categoryLabel = firstCat.name;
+const categoryLabel = firstCat?.name ?? "general";
 
-// lista de nombres para mostrar (v4/v5)
+// lista de categorías para mostrar (v4/v5)
 const categories = Array.isArray(r.categories)
-  ? r.categories.map((c: any) => c?.name ?? c?.attributes?.name).filter(Boolean)
-  : (r.categories?.data ?? []).map((c: any) => c?.attributes?.name).filter(Boolean);
+  ? r.categories
+      .map((c: any) => c?.name ?? c?.attributes?.name)
+      .filter(Boolean)
+  : (r.categories?.data ?? [])
+      .map((c: any) => c?.attributes?.name)
+      .filter(Boolean);
 
 const seo = r.seo ?? null;
 
 // content: si viene string html, ok. si viene objeto (strapi blocks), fallback
 const rawContent = r.content;
 const contentHtml =
-  typeof rawContent === "string"
+  typeof rawContent === "string" && rawContent.trim().length
     ? rawContent
     : "<p>contenido no disponible en html (revisa el tipo de campo en strapi).</p>";
 
 const readingTime = calculateReadingTime(contentHtml);
+
+// slug seguro para el widget
+const safeSlug = String(r.slug ?? slug ?? "").trim();
 ---
 
 <Layout title={seo?.metaTitle || title} description={seo?.metaDescription || excerpt}>
@@ -59,6 +77,8 @@ const readingTime = calculateReadingTime(contentHtml);
           src={coverUrl}
           alt={`portada de ${title}`}
           class="w-full h-full object-cover"
+          loading="eager"
+          decoding="async"
         />
         <div class="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"></div>
       </div>
@@ -67,11 +87,15 @@ const readingTime = calculateReadingTime(contentHtml);
         <div class="container">
           <div class="max-w-4xl mx-auto">
             <header class="mb-10">
-              {categoryLabel && (
-                <div class="mb-4">
+              <div class="mb-4 flex flex-wrap gap-2">
+                {categoryLabel && (
                   <span class="badge bg-primary/10 text-primary">{categoryLabel}</span>
-                </div>
-              )}
+                )}
+                {categories?.length > 1 &&
+                  categories.slice(1).map((c: string) => (
+                    <span class="badge bg-secondary text-secondary-foreground">{c}</span>
+                  ))}
+              </div>
 
               <h1 class="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 text-balance">
                 {title}
@@ -93,11 +117,20 @@ const readingTime = calculateReadingTime(contentHtml);
               </div>
             </header>
 
-            <div class="prose-content mb-16">
+            <div class="prose-content mb-12">
               <Fragment set:html={contentHtml} />
             </div>
 
-            <div class="border-t border-border pt-6">
+            {/* widget de voto + rango */}
+            {safeSlug ? (
+              <RatingWidget targetType="review" slug={safeSlug} title={title} />
+            ) : (
+              <p class="text-sm text-muted-foreground">
+                no se puede votar: esta reseña no tiene slug.
+              </p>
+            )}
+
+            <div class="border-t border-border pt-6 mt-10">
               <a href="/reviews/" class="btn btn-secondary">&larr; volver a reseñas</a>
             </div>
           </div>

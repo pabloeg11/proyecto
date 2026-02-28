@@ -1,0 +1,40 @@
+{
+  "kind": "collectionType",
+  "collectionName": "voters",
+  "info": {
+    "singularName": "voter",
+    "pluralName": "voters",
+    "displayName": "voter"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "anonId": {
+      "type": "string",
+      "unique": true
+    },
+    "points": {
+      "type": "integer",
+      "default": 0
+    },
+    "votesCount": {
+      "type": "integer",
+      "default": 0
+    },
+    "rank": {
+      "type": "enumeration",
+      "default": "novato",
+      "enum": [
+        "novato",
+        "aprendiz",
+        "explorador",
+        "crítico",
+        "experto",
+        "maestro",
+        "leyenda"
+      ]
+    }
+  }
+}
