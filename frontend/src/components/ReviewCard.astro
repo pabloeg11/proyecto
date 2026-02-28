@@ -1,76 +1,93 @@
 ---
-import { formatDate } from '../lib/api';
+import { formatDate } from "../lib/api";
 
-interface Props {
+type Props = {
   title: string;
   slug: string;
-  excerpt: string;
-  rating: number;
-  category: string;
-  categoryLabel?: string;
-  image: string;
-  author: string;
-  publishedAt: string;
-  genre?: string;
+  excerpt?: string;
+  rating?: number | null;
+
+  // category lo usamos para colores (slug tipo "peliculas")
+  category?: string | null;
+
+  // categoryLabel lo mostramos (nombre tipo "Películas")
+  categoryLabel?: string | null;
+
+  // url absoluta ya resuelta (strapi) o null si no hay imagen
+  image?: string | null;
+
+  author?: string | null;
+  publishedAt?: string | null;
+  genre?: string | null;
   featured?: boolean;
-}
-
-const {
-  title,
-  slug,
-  excerpt,
-  rating,
-  category,
-  categoryLabel = '',
-  image,
-  author,
-  publishedAt,
-  genre = '',
-  featured = false,
-} = Astro.props;
-
-const categoryColors: Record<string, string> = {
-  peliculas: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  series: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  videojuegos: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
 };
 
+const {
+  title = "sin título",
+  slug = "",
+  excerpt = "",
+  rating = 0,
+  category = "general",
+  categoryLabel = "general",
+  image = null,
+  author = "Anónimo",
+  publishedAt = new Date().toISOString(),
+  genre = "",
+  featured = false,
+} = Astro.props as Props;
+
+const categoryColors: Record<string, string> = {
+  peliculas: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  series: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  videojuegos: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+};
+
+const safeRating = typeof rating === "number" && Number.isFinite(rating) ? rating : 0;
+
 const ratingColor =
-  rating >= 9
-    ? 'bg-green-500 text-white'
-    : rating >= 7
-      ? 'bg-primary text-primary-foreground'
-      : rating >= 5
-        ? 'bg-yellow-500 text-white'
-        : 'bg-red-500 text-white';
+  safeRating >= 9
+    ? "bg-green-500 text-white"
+    : safeRating >= 7
+      ? "bg-primary text-primary-foreground"
+      : safeRating >= 5
+        ? "bg-yellow-500 text-white"
+        : "bg-red-500 text-white";
 ---
 
-<article class={`card group ${featured ? 'md:col-span-2' : ''}`}>
+<article class={`card group ${featured ? "md:col-span-2" : ""}`}>
   <a href={`/reviews/${slug}/`} class="block" aria-label={`Leer reseña de ${title}`}>
-    <div class={`relative overflow-hidden ${featured ? 'aspect-[21/9]' : 'aspect-video'}`}>
-      <img
-        src={image}
-        alt={`Imagen de portada de la reseña de ${title}`}
-        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        loading="lazy"
-        decoding="async"
-      />
-      <!-- Rating badge -->
+    <div class={`relative overflow-hidden ${featured ? "aspect-[21/9]" : "aspect-video"}`}>
+      {image ? (
+        <img
+          src={image}
+          alt={`Imagen de portada de la reseña de ${title}`}
+          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <div class="w-full h-full bg-muted/20 flex items-center justify-center">
+          <span class="text-xs text-muted-foreground font-sans px-4 text-center">
+            sin imagen
+          </span>
+        </div>
+      )}
+
       <div class={`absolute top-3 right-3 ${ratingColor} rounded-lg px-2.5 py-1 font-sans font-bold text-sm`}>
-        {rating.toFixed(1)}
+        {safeRating.toFixed(1)}
       </div>
-      <!-- Category badge -->
-      <div class={`absolute top-3 left-3 badge ${categoryColors[category] || 'bg-secondary text-secondary-foreground'}`}>
-        {categoryLabel}
+
+      <div class={`absolute top-3 left-3 badge ${categoryColors[category ?? "general"] || "bg-secondary text-secondary-foreground"}`}>
+        {categoryLabel ?? "general"}
       </div>
     </div>
 
     <div class="p-5">
       <div class="flex items-center gap-2 mb-2">
-        <span class="text-xs text-muted-foreground font-sans">{genre}</span>
+        {genre ? <span class="text-xs text-muted-foreground font-sans">{genre}</span> : <span class="text-xs text-muted-foreground font-sans"> </span>}
         <span class="text-muted-foreground">|</span>
-        <time class="text-xs text-muted-foreground font-sans" datetime={publishedAt}>
-          {formatDate(publishedAt)}
+        <time class="text-xs text-muted-foreground font-sans" datetime={publishedAt ?? new Date().toISOString()}>
+          {formatDate(publishedAt ?? new Date().toISOString())}
         </time>
       </div>
 
@@ -83,7 +100,7 @@ const ratingColor =
       </p>
 
       <div class="flex items-center justify-between">
-        <span class="text-xs text-muted-foreground font-sans">Por {author}</span>
+        <span class="text-xs text-muted-foreground font-sans">Por {author ?? "Anónimo"}</span>
         <span class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity font-sans">
           Leer reseña &rarr;
         </span>

@@ -2,8 +2,9 @@
 import Layout from '../../layouts/Layout.astro';
 import BlogCard from '../../components/BlogCard.astro';
 import { getBlogPosts } from '../../lib/api';
+import { getStrapiMediaUrl } from "../../lib/api";
 
-const url = new URL(Astro.request.url);
+const url = Astro.url;
 const searchParam = url.searchParams.get('search') || '';
 const pageParam = parseInt(url.searchParams.get('page') || '1', 10);
 
@@ -115,18 +116,20 @@ const { page, pageCount, total } = posts?.meta?.pagination || { page: 1, pageCou
 
           <!-- Blog Grid -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            {posts.data.slice(pageParam === 1 && !searchParam ? 1 : 0).map(({ attributes }) => (
-              <BlogCard
-                title={attributes.title}
-                slug={attributes.slug}
-                excerpt={attributes.excerpt}
-                image={attributes.image || '/images/placeholder.jpg'}
-                author={attributes.author || 'Anónimo'}
-                publishedAt={attributes.publishedAt || new Date().toISOString()}
-                category={attributes.category || 'General'}
-                content={attributes.content}
-              />
-            ))}
+            {posts?.data
+  ?.filter((post) => post?.attributes?.slug)
+  .map((post) => (
+    <BlogCard
+      title={post.attributes.title ?? "sin título"}
+      slug={post.attributes.slug}
+      excerpt={post.attributes.excerpt ?? ""}
+      image={getStrapiMediaUrl(post.attributes.cover)}
+      author={post.attributes.author ?? "Anónimo"}
+      publishedAt={post.attributes.publishedAt ?? new Date().toISOString()}
+      category="General"
+      content={post.attributes.content ?? ""}
+    />
+  ))}
           </div>
 
           <!-- Pagination -->

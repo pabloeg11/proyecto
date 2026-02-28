@@ -3,7 +3,13 @@ import Layout from '../layouts/Layout.astro';
 import { getContactPageData } from '../lib/api';
 
 // Obtener datos de contacto desde Strapi
-let contactData = await getContactPageData();
+let contactData = null;
+
+try {
+  contactData = await getContactPageData();
+} catch {
+  contactData = null;
+}
 
 // Fallbacks por defecto
 const email = contactData?.email || 'contacto@example.com';
@@ -40,6 +46,7 @@ const socialMedia = contactData?.socialMedia || [
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-10">
           <!-- Contact Info -->
           <div class="lg:col-span-2">
+            
             <div class="bg-card border border-border rounded-xl p-6 mb-6">
               <h2 class="font-serif text-xl font-bold text-foreground mb-4">Información</h2>
               <ul class="flex flex-col gap-5">

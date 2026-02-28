@@ -1,27 +1,25 @@
 ---
 export const prerender = false;
 
-import Layout from '../layouts/Layout.astro';
-import ReviewCard from '../components/ReviewCard.astro';
-import BlogCard from '../components/BlogCard.astro';
-import CategoryCard from '../components/CategoryCard.astro';
-import { getFeaturedReviews, getReviews, getBlogPosts, getCategories } from '../lib/api';
+import Layout from "../layouts/Layout.astro";
+import ReviewCard from "../components/ReviewCard.astro";
+import BlogCard from "../components/BlogCard.astro";
+import CategoryCard from "../components/CategoryCard.astro";
 
-const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? 'http://127.0.0.1:1337';
-
-function mediaUrl(media: any) {
-  const url = media?.data?.attributes?.url;
-  if (!url) return null;
-  return url.startsWith('http') ? url : `${STRAPI_URL}${url}`;
-}
+import {
+  getFeaturedReviews,
+  getReviews,
+  getBlogPosts,
+  getCategories,
+  getStrapiMediaUrl,
+} from "../lib/api";
 
 function firstCategory(rel: any) {
   const cat = rel?.data?.[0]?.attributes;
-  if (!cat) return { name: '', slug: '' };
-  return { name: cat.name ?? '', slug: cat.slug ?? '' };
+  if (!cat) return { name: "general", slug: "general" };
+  return { name: cat.name ?? "general", slug: cat.slug ?? "general" };
 }
 
-// consumo de api con async/await y try/catch
 let featuredReviews: any[] = [];
 let latestReviews: any = null;
 let latestPosts: any = null;
@@ -60,7 +58,6 @@ try {
   title="Inicio"
   description="ZonaReseñas - Tu fuente de confianza para reseñas de películas, series y videojuegos."
 >
-  <!-- hero section -->
   <section class="relative overflow-hidden bg-card border-b border-border">
     <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5"></div>
     <div class="container relative py-20 md:py-28">
@@ -91,65 +88,72 @@ try {
     </section>
   ) : (
     <>
-      <!-- featured reviews -->
       {featuredReviews && featuredReviews.length > 0 && (
         <section class="section" aria-labelledby="featured-heading">
           <div class="container">
             <div class="flex items-end justify-between mb-10">
               <div>
                 <span class="inline-block badge bg-accent/10 text-accent mb-2 font-sans uppercase tracking-wider text-xs">
-                  Selección del editor
+                  selección del editor
                 </span>
                 <h2 id="featured-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground">
-                  Destacadas
+                  destacadas
                 </h2>
               </div>
               <a href="/reviews/" class="hidden md:inline-flex text-sm font-medium text-primary hover:underline font-sans">
-                Ver Todas &rarr;
+                ver todas &rarr;
               </a>
             </div>
 
-            {/* hero (destacada principal) */}
             {(() => {
               const hero = featuredReviews[0]?.attributes ?? {};
-              const heroCover = mediaUrl(hero.cover) || '/images/placeholder.jpg';
+
+              // en reviews: la imagen es "image" (media)
+              const heroCover = getStrapiMediaUrl(hero.image);
               const heroCat = firstCategory(hero.categories);
               const heroRating = Number(hero.rating ?? 0);
 
               const heroRatingColor =
-                heroRating >= 9 ? 'bg-green-500 text-white'
-                : heroRating >= 7 ? 'bg-primary text-primary-foreground'
-                : 'bg-yellow-500 text-white';
+                heroRating >= 9 ? "bg-green-500 text-white"
+                : heroRating >= 7 ? "bg-primary text-primary-foreground"
+                : "bg-yellow-500 text-white";
 
               return (
                 <a href={`/reviews/${hero.slug}/`} class="group block mb-6 relative overflow-hidden rounded-xl">
-                  <div class="aspect-[21/9] md:aspect-[3/1]">
-                    <img
-                      src={heroCover}
-                      alt={`Portada de ${hero.title}`}
-                      class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      loading="eager"
-                      decoding="async"
-                    />
+                  <div class="aspect-[21/9] md:aspect-[3/1] bg-muted/20">
+                    {heroCover ? (
+                      <img
+                        src={heroCover}
+                        alt={`Portada de ${hero.title ?? "reseña"}`}
+                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        loading="eager"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div class="w-full h-full flex items-center justify-center">
+                        <span class="text-xs text-muted-foreground font-sans">sin imagen</span>
+                      </div>
+                    )}
                   </div>
+
                   <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                   <div class="absolute bottom-0 left-0 right-0 p-6 md:p-10">
                     <div class="flex flex-wrap items-center gap-3 mb-3">
-                      {heroCat?.name && <span class="badge bg-white/20 text-white backdrop-blur-sm">{heroCat.name}</span>}
+                      <span class="badge bg-white/20 text-white backdrop-blur-sm">{heroCat.name}</span>
                       {hero.genre && <span class="badge bg-white/20 text-white backdrop-blur-sm">{hero.genre}</span>}
                       <span class={`badge ${heroRatingColor} font-bold`}>{heroRating.toFixed(1)}</span>
                     </div>
                     <h3 class="font-serif text-2xl md:text-4xl font-bold text-white mb-2 group-hover:text-primary transition-colors text-balance">
-                      {hero.title}
+                      {hero.title ?? "sin título"}
                     </h3>
                     <p class="text-white/80 text-sm md:text-base max-w-2xl leading-relaxed line-clamp-2 mb-3">
-                      {hero.excerpt}
+                      {hero.excerpt ?? ""}
                     </p>
                     <div class="flex items-center gap-3">
-                      <span class="text-xs text-white/60 font-sans">por {hero.author ?? 'zona reseñas'}</span>
+                      <span class="text-xs text-white/60 font-sans">por {hero.author ?? "zona reseñas"}</span>
                       <span class="text-white/40">|</span>
                       <span class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity font-sans">
-                        Leer reseña completa &rarr;
+                        leer reseña completa &rarr;
                       </span>
                     </div>
                   </div>
@@ -157,41 +161,45 @@ try {
               );
             })()}
 
-            {/* secundarias */}
             {featuredReviews.length > 1 && (
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {featuredReviews.slice(1, 4).map((it: any) => {
                   const feat = it?.attributes ?? {};
-                  const featCover = mediaUrl(feat.cover) || '/images/placeholder.jpg';
+                  const featCover = getStrapiMediaUrl(feat.image);
                   const featCat = firstCategory(feat.categories);
                   const featRating = Number(feat.rating ?? 0);
 
                   const featRatingColor =
-                    featRating >= 9 ? 'bg-green-500 text-white'
-                    : featRating >= 7 ? 'bg-primary text-primary-foreground'
-                    : 'bg-yellow-500 text-white';
+                    featRating >= 9 ? "bg-green-500 text-white"
+                    : featRating >= 7 ? "bg-primary text-primary-foreground"
+                    : "bg-yellow-500 text-white";
 
                   return (
-                    <a href={`/reviews/${feat.slug}/`} class="group relative block overflow-hidden rounded-lg aspect-[4/3]">
-                      <img
-                        src={featCover}
-                        alt={`Portada de ${feat.title}`}
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        loading="lazy"
-                        decoding="async"
-                      />
+                    <a href={`/reviews/${feat.slug}/`} class="group relative block overflow-hidden rounded-lg aspect-[4/3] bg-muted/20">
+                      {featCover ? (
+                        <img
+                          src={featCover}
+                          alt={`Portada de ${feat.title ?? "reseña"}`}
+                          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <div class="w-full h-full flex items-center justify-center">
+                          <span class="text-xs text-muted-foreground font-sans">sin imagen</span>
+                        </div>
+                      )}
+
                       <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
                       <div class="absolute top-3 right-3">
                         <span class={`badge ${featRatingColor} font-bold text-xs`}>{featRating.toFixed(1)}</span>
                       </div>
                       <div class="absolute bottom-0 left-0 right-0 p-4">
-                        {featCat?.name && (
-                          <span class="badge bg-white/20 text-white backdrop-blur-sm text-xs mb-2">{featCat.name}</span>
-                        )}
+                        <span class="badge bg-white/20 text-white backdrop-blur-sm text-xs mb-2">{featCat.name}</span>
                         <h3 class="font-serif text-lg font-bold text-white group-hover:text-primary transition-colors text-balance leading-tight">
-                          {feat.title}
+                          {feat.title ?? "sin título"}
                         </h3>
-                        <p class="text-white/70 text-xs mt-1 line-clamp-2">{feat.excerpt}</p>
+                        <p class="text-white/70 text-xs mt-1 line-clamp-2">{feat.excerpt ?? ""}</p>
                       </div>
                     </a>
                   );
@@ -202,131 +210,142 @@ try {
         </section>
       )}
 
-      <!-- categories -->
       {categories && categories.length > 0 && (
         <section class="section bg-card border-y border-border" aria-labelledby="categories-heading">
           <div class="container">
             <div class="text-center mb-10">
               <h2 id="categories-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground">
-                Explora por categoría
+                explora por categoría
               </h2>
               <p class="text-muted-foreground mt-2 font-sans">
-                Encuentra reseñas del tipo de contenido que más te gusta
+                encuentra reseñas del tipo de contenido que más te gusta
               </p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {categories.map((c: any) => {
-                const a = c?.attributes ?? {};
-                return (
-                  <CategoryCard
-                    name={a.name}
-                    slug={a.slug}
-                    description={a.description || 'sin descripción'}
-                    image={mediaUrl(a.image) || '/images/placeholder.jpg'}
-                    count={a.count || 0}
-                  />
-                );
-              })}
+              {categories
+                .filter((c: any) => c?.attributes?.slug)
+                .map((c: any) => {
+                  const a = c?.attributes ?? {};
+                  return (
+                    <CategoryCard
+                      name={a.name ?? "sin nombre"}
+                      slug={a.slug}
+                      description={a.description ?? "sin descripción"}
+                      image={getStrapiMediaUrl(a.image)}
+                      count={Number(a.count ?? 0)}
+                    />
+                  );
+                })}
             </div>
           </div>
         </section>
       )}
 
-      <!-- latest reviews -->
       {latestReviewItems && latestReviewItems.length > 0 && (
         <section class="section" aria-labelledby="latest-reviews-heading">
           <div class="container">
             <div class="flex items-end justify-between mb-8">
               <div>
                 <h2 id="latest-reviews-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground">
-                  Últimas reseñas
+                  últimas reseñas
                 </h2>
-                <p class="text-muted-foreground mt-1 font-sans">Nuestros análisis más recientes</p>
+                <p class="text-muted-foreground mt-1 font-sans">nuestros análisis más recientes</p>
               </div>
               <a href="/reviews/" class="hidden md:inline-flex text-sm font-medium text-primary hover:underline font-sans">
-                Ver todas &rarr;
+                ver todas &rarr;
               </a>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {latestReviewItems.map((item: any) => {
-                const a = item?.attributes ?? {};
-                const cover = mediaUrl(a.cover) || '/images/placeholder.jpg';
-                const cat = firstCategory(a.categories);
+              {latestReviewItems
+                .filter((item: any) => item?.attributes?.slug)
+                .map((item: any) => {
+                  const a = item?.attributes ?? {};
+                  const cat = firstCategory(a.categories);
 
-                return (
-                  <ReviewCard
-                    title={a.title}
-                    slug={a.slug}
-                    excerpt={a.excerpt}
-                    rating={Number(a.rating ?? 0)}
-                    category={cat.slug}
-                    categoryLabel={cat.name}
-                    image={cover}
-                    author={a.author || 'zona reseñas'}
-                    publishedAt={a.publishedAt || a.publishedDate || new Date().toISOString()}
-                    genre={a.genre}
-                  />
-                );
-              })}
+                  return (
+                    <ReviewCard
+                      title={a.title ?? "sin título"}
+                      slug={a.slug}
+                      excerpt={a.excerpt ?? ""}
+                      rating={Number(a.rating ?? 0)}
+                      category={cat.slug}
+                      categoryLabel={cat.name}
+                      image={getStrapiMediaUrl(a.image)}
+                      author={a.author ?? "zona reseñas"}
+                      publishedAt={a.publishedAt ?? new Date().toISOString()}
+                      genre={a.genre ?? ""}
+                    />
+                  );
+                })}
             </div>
           </div>
         </section>
       )}
 
-      <!-- blog -->
       {latestPosts && latestPosts.data && latestPosts.data.length > 0 && (
         <section class="section bg-card border-y border-border" aria-labelledby="blog-heading">
           <div class="container">
             <div class="flex items-end justify-between mb-8">
               <div>
                 <h2 id="blog-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground">
-                  Desde el blog
+                  desde el blog
                 </h2>
-                <p class="text-muted-foreground mt-1 font-sans">Artículos, Listas y Opiniones del equipo</p>
+                <p class="text-muted-foreground mt-1 font-sans">artículos, listas y opiniones del equipo</p>
               </div>
               <a href="/blog/" class="hidden md:inline-flex text-sm font-medium text-primary hover:underline font-sans">
-                Ir al blog &rarr;
+                ir al blog &rarr;
               </a>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {latestPosts.data.map((post: any) => {
-                const a = post?.attributes ?? {};
-                return (
-                  <BlogCard
-                    title={a.title}
-                    slug={a.slug}
-                    excerpt={a.excerpt}
-                    image={mediaUrl(a.image) || '/images/placeholder.jpg'}
-                    author={a.author || 'anónimo'}
-                    publishedAt={a.publishedAt || new Date().toISOString()}
-                    category={a.category || 'general'}
-                    content={a.content}
-                  />
-                );
-              })}
+              {latestPosts.data
+                .filter((p: any) => p?.attributes?.slug)
+                .map((post: any) => {
+                  const a = post?.attributes ?? {};
+
+                  // en posts: la imagen es "cover" (media)
+                  const postCover = getStrapiMediaUrl(a.cover);
+
+                  // category puede ser string o relación, lo dejamos como string seguro
+                  const categoryLabel =
+                    typeof a.category === "string"
+                      ? a.category
+                      : a.category?.data?.attributes?.name ?? "general";
+
+                  return (
+                    <BlogCard
+                      title={a.title ?? "sin título"}
+                      slug={a.slug}
+                      excerpt={a.excerpt ?? ""}
+                      image={postCover}
+                      author={a.author ?? "anónimo"}
+                      publishedAt={a.publishedAt ?? new Date().toISOString()}
+                      category={categoryLabel}
+                      content={a.content ?? ""}
+                    />
+                  );
+                })}
             </div>
           </div>
         </section>
       )}
 
-      <!-- cta -->
       <section class="section" aria-labelledby="cta-heading">
         <div class="container">
           <div class="bg-gradient-to-br from-primary/10 via-card to-accent/10 border border-border rounded-2xl p-8 md:p-12 text-center">
             <h2 id="cta-heading" class="font-serif text-2xl md:text-3xl font-bold text-foreground mb-4">
-              Sube de rango participando
+              sube de rango participando
             </h2>
             <p class="text-muted-foreground max-w-2xl mx-auto mb-6 font-sans leading-relaxed">
-              En zona reseñas valoramos tu opinión. comenta, valora contenido y sube de rango: desde
-              <strong class="text-foreground"> Novato</strong> hasta
-              <strong class="text-foreground"> Leyenda</strong>. cada interacción cuenta.
+              en zona reseñas valoramos tu opinión. comenta, valora contenido y sube de rango: desde
+              <strong class="text-foreground"> novato</strong> hasta
+              <strong class="text-foreground"> leyenda</strong>. cada interacción cuenta.
             </p>
 
             <a href="/reviews/" class="btn btn-primary">
-              Empieza a participar
+              empieza a participar
             </a>
           </div>
         </div>
