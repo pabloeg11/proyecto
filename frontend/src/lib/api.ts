@@ -408,3 +408,15 @@
   export async function debugGetReviews() {
     return strapiFetch(`/api/reviews?populate=*`);
   }
+
+export async function getContactPageData() {
+  const res = await fetch(`${STRAPI_URL}/api/contact-page?populate=deep`, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`error cargando contact-page: ${res.status}`);
+  }
+
+  return await res.json();
+}

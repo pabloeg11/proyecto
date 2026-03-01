@@ -36,13 +36,22 @@ const {
   featured = false,
 } = Astro.props as Props;
 
+// env
+const STRAPI_URL = import.meta.env.PUBLIC_STRAPI_URL ?? "https://api.critixreviews.es";
+
+// arreglar url relativa (/uploads/...) para que apunte al subdominio api
+const fixedImage =
+  image && image.startsWith("http")
+    ? image
+    : image
+      ? `${STRAPI_URL}${image}`
+      : null;
+
 const categoryColors: Record<string, string> = {
   peliculas: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   series: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   videojuegos: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
 };
-
-
 
 const safeRating = typeof rating === "number" && Number.isFinite(rating) ? rating : 0;
 
@@ -55,13 +64,12 @@ const ratingColor =
         ? "bg-yellow-500 text-white"
         : "bg-red-500 text-white";
 ---
-
 <article class={`card group ${featured ? "md:col-span-2" : ""}`}>
   <a href={`/reviews/${slug}/`} class="block" aria-label={`Leer reseña de ${title}`}>
     <div class={`relative overflow-hidden ${featured ? "aspect-[21/9]" : "aspect-video"}`}>
-      {image ? (
+      {fixedImage ? (
         <img
-          src={image}
+          src={fixedImage}
           alt={`Imagen de portada de la reseña de ${title}`}
           class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
@@ -86,7 +94,11 @@ const ratingColor =
 
     <div class="p-5">
       <div class="flex items-center gap-2 mb-2">
-        {genre ? <span class="text-xs text-muted-foreground font-sans">{genre}</span> : <span class="text-xs text-muted-foreground font-sans"> </span>}
+        {genre ? (
+          <span class="text-xs text-muted-foreground font-sans">{genre}</span>
+        ) : (
+          <span class="text-xs text-muted-foreground font-sans"> </span>
+        )}
         <span class="text-muted-foreground">|</span>
         <time class="text-xs text-muted-foreground font-sans" datetime={publishedAt ?? new Date().toISOString()}>
           {formatDate(publishedAt ?? new Date().toISOString())}
